@@ -38,7 +38,7 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-#This code has beem edited to work with python 3 and also to only spit out the feret diameter
+#This code has beem edited to work with python 3 and also to only spit out the feret diameter by Helena Raymond-Hayling December 2020
 from numpy import *
 import numpy
 
@@ -86,9 +86,9 @@ def feret_diameter_from_hull(hull_points_2d):
         edge_angles[i] = math.atan2( edges[i,1], edges[i,0] )
     #print "Edge angles: \n", edge_angles
 
-    # Check for angles in 1st quadrant
+    # Check for angles in 1st/2nd quadrant
     for i in range( len(edge_angles) ):
-        edge_angles[i] = abs( edge_angles[i] % (math.pi/2) ) # want strictly positive answers
+        edge_angles[i] = abs( edge_angles[i] % (math.pi) ) # want strictly positive answers
     #print "Edge angles in 1st Quadrant: \n", edge_angles
 
     # Remove duplicate angles
