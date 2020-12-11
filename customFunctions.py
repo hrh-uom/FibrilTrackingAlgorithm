@@ -15,6 +15,39 @@ plt.rcParams['figure.figsize'] = [10, 7.5];#default plot size
 plt.rcParams['animation.ffmpeg_path'] = 'C:\\FFmpeg\\bin\\ffmpeg.exe'; # SPECIFIC TO YOUR MACHINE, for inline animations
 import winsound #for development
 from  datetime import datetime as dt
+import os
+
+#----------------DIRECTORIES AND PATHS-------------------
+
+def create_Directory(directory):
+    """
+    Tests for existence of directory then creates one if not
+    """
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+
+def find_3V_data(whichdata=0):
+    """
+    finds relevant directory for three view based on choice of timepoint.
+    options 9am: 9, 9.15, 9.100
+    options 7pm: 19, 19.100
+    """
+    if whichdata==9:
+        dir3View = 'D:\\3View\\9am-achilles-fshx\\7.5um_crop_2\\'
+    elif whichdata==19:
+        dir3View = 'D:\\3View\\7pmAchx700\\7-5um\\'
+    elif whichdata==19.100: #dummyset1!!
+        dir3View='D:\\3View\\7pmAchx700\\7-5um\\dummy_0_100\\'
+    elif whichdata==9.15: #dummyset1!!
+        dir3View='D:\\3View\\9am-achilles-fshx\\7.5um_crop_2\\dummy_110_124\\'
+    elif whichdata==9.100:
+        dir3View='D:\\3View\\9am-achilles-fshx\\7.5um_crop_2\\dummy_100_200\\'
+    else:
+        return 0
+    return dir3View
+
+
 
 
 def printarray(array):
@@ -66,6 +99,21 @@ def viewwindow(fID,pID, cofI,size, npix, nplanes, morphComp): #View window of se
     rect=patches.Rectangle((xy[0],xy[1]),recsize[0],recsize[1],linewidth=1,edgecolor='w',facecolor='none')
     # Add the patch to the Axes
     ax.add_patch(rect)
+    plt.show()
+
+
+#------------------ANIMATION AND VISUALISATION-----------------------------#
+
+
+def my_histogram(arr,xlabel, title='Histogram',  nbins=10):
+    """
+    A histogram, with number on the y axis
+    """
+    n, bins, patches = plt.hist(arr, nbins, density=False, facecolor='g', alpha=0.75)
+    plt.xlabel(xlabel)
+    plt.ylabel('Number')
+    plt.title(title)
+    plt.grid(True)
     plt.show()
 
 
@@ -124,7 +172,19 @@ def view_fibs_inline_2(morphComp,fib_group, fib_rec, endplane, startplane=0,save
 
 
     anim = animation.ArtistAnimation(fig, ims, interval=dt, blit=True, repeat_delay=1000)
-    plt.close(); #suppress blank plot
+    plt.close()  #suppress blank plot
     #return labels
 
     return HTML(anim.to_html5_video())
+
+def red_objects_1_plane(obj_group, pID):
+ """
+ Please feed object numbers (inplane) not fibril numbers
+ """
+ labels=morphComp[pID].copy()
+ for i in range(obj_group.size):
+     value=obj_group[i]
+     labels=np.where(morphComp[pID]==value+1, -1, labels)
+ labels=np.where(labels>0, 1, labels)
+ rgblabel=label2rgb(labels, bg_label=0, colors=[(1, 0, 0), (1, 1, 1)])
+ plt.imshow(rgblabel)
