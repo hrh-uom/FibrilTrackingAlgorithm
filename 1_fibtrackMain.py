@@ -21,7 +21,14 @@ plt.rcParams['lines.linewidth'] = 2.0
 plt.rcParams['animation.ffmpeg_path'] = 'C:\\FFmpeg\\bin\\ffmpeg.exe'  # SPECIFIC TO YOUR MACHINE, for inline animations
 
 #----------------------------------------------------------------------------------
-#.........................1. IMPORT DATA AND IMAGES.....................................
+#...............................1. USER INPUT .................................
+#------------------------------------------------------------------------------------
+fromscratch=True
+whichdata=9.15;skip=1
+a, b, c=10,0.1,5
+
+#----------------------------------------------------------------------------------
+#.........................2. IMPORT IMAGES , LABEL, MEASURE ......................
 #------------------------------------------------------------------------------------
 def create_binary_stack(dir3V):
     """
@@ -44,23 +51,6 @@ def compress_by_skipping(skip):
         dz*=skip
         nplanes=imgstack.shape[0]
         dirResults= dir3V+'skip_%d_results\\'%skip
-
-whichdata=9.15;skip=1
-a, b, c=10,0.1,5;
-
-dir3V=md.find_3V_data(whichdata); # find the relevant data based on the timepoint desired
-imgstack=create_binary_stack(dir3V) #import images and create binary array
-pxsize, dz=np.genfromtxt( dir3V+'pxsize.csv', delimiter=',')[1] #import voxel size
-nplanes, npix, npix = imgstack.shape #measure array dims
-Lscale = 200/pxsize #a lengthscale converted into pixels , here, 200nm.
-junk=pd.read_csv( dir3V+'junkslices.csv', header=None).to_numpy().T[0] #which slices are broken
-dirResults= dir3V+'results\\'
-if skip>1:
-    compress_by_skipping(skip)
-md.create_Directory(dirResults)
-#----------------------------------------------------------------------------------
-#.........................2. LABEL AND MEASURE .....................................
-#------------------------------------------------------------------------------------
 def create_morph_comp(imgstack):
     global npix
     global nplanes
@@ -69,10 +59,9 @@ def create_morph_comp(imgstack):
         morphComp[i]=label(imgstack[i])
     np.save(dirResults+'morphComp', morphComp)
     return morphComp
-morphComp=create_morph_comp(imgstack);
-
 def create_properties_table(morphComp):
-    """    Setting up table of properties for each plane (props) props stores (pID, objectID, property). it is the length of the max number of objects in any plane, and populated with zeroes.
+    """
+    Setting up table of properties for each plane (props) props stores (pID, objectID, property). it is the length of the max number of objects in any plane, and populated with zeroes.
     """
     props_ofI='centroid','orientation','area','eccentricity' # these properties are the ones to be calculated using skimage.measure
     props=np.empty((nplanes, np.max(morphComp), len(props_ofI)+2)) #the +2 is because centroid splits into 2, and also to leave space for the feret diameter, calculated by a custom script.
@@ -85,11 +74,30 @@ def create_properties_table(morphComp):
     np.save(dirResults+'props', props)
     return props
     #return temp.shape
-props=create_properties_table(morphComp)
+
+dir3V=md.find_3V_data(whichdata); # find the relevant data based on the timepoint desired
+pxsize, dz=np.genfromtxt( dir3V+'pxsize.csv', delimiter=',')[1] #import voxel size
+Lscale = 200/pxsize #a lengthscale converted into pixels , here, 200nm.
+junk=pd.read_csv( dir3V+'junkslices.csv', header=None).to_numpy().T[0] #which slices are broken
+dirResults= dir3V+'results\\' #Create subfolder (if it doesnt already exist!)
+md.create_Directory(dirResults)
+
+if fromscratch:
+    imgstack=create_binary_stack(dir3V) #import images and create binary array
+    nplanes, npix, _ = imgstack.shape #measure array dims
+    if skip>1:
+        compress_by_skipping(skip)
+    morphComp=create_morph_comp(imgstack);
+    props=create_properties_table(morphComp)
+else: #to save time
+    morphComp=np.load(dirResults+"morphComp.npy")
+    props=np.load(dirResults+"props.npy")
+    nplanes, npix, _=morphComp.shape
+
 #---------------------------------------------------------------------------
 #.................................3. FIBRIL MAPPING...........................
 #-------------------------------------------------------------------------------
-#------Errors
+#%%------Errors
 def err_c_v(pID, i, j, dz_f):
     """
     centroid error without prior knowledge of trajectory (vertical mapping)

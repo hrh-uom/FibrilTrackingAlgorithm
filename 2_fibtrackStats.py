@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import fibtrack_custom_functions as md
+import customFunctions as md
 from random import randint
 plt.rcParams['figure.figsize'] = [10, 7.5];#default plot size
 plt.rcParams['font.size']=16;
@@ -8,57 +8,22 @@ plt.rcParams['lines.linewidth'] = 2.0
 #----------------------------------------------------------------------------
 #....................IMPORT DATA FROM FIBRIL MAPPING....................
 #-------------------------------------------------------------------------------
-whichdata=9.100;
+whichdata=0;
 desired_length=0.9;
 
-if whichdata==9:
-    mainDir = r'D:\3View\9am-achilles-fshx\7.5um_crop_2';
-    exportDir = mainDir+r'\skip_2_results'
-elif whichdata==19:
-    mainDir= r'D:\3View\7pmAchx700\7-5um'
-    exportDir = mainDir+'\skip_3_results'
-elif whichdata==19.100:
-    mainDir= r'D:\3View\7pmAchx700\7-5um\dummy_0_100'
-    exportDir = mainDir+r'\results'
-elif whichdata==9.15: #dummyset 15 planes!
-    mainDir=r'D:\3View\9am-achilles-fshx\7.5um_crop_2\dummy_110_124'
-    exportDir=mainDir+r'\results'
-elif whichdata==9.100: #dummyset 100
-    mainDir=r'D:\3View\9am-achilles-fshx\7.5um_crop_2\dummy_100_200'
-    exportDir=mainDir+r'\results'
-else:
-    x=1; #dummy
+resultsDir=md.find_3V_data(whichdata)+'results\\';
+
 try:
-    fib_rec_0=np.load(exportDir+r'\fib_rec.npy'); #original, import fibril record
+    fib_rec_0=np.load(resultsDir+r'\fib_rec.npy') #original, import fibril record
+    morphComp=np.load(resultsDir+r'\morphComp.npy')
+    props=np.load(resultsDir+r'\props.npy')
 except:
-    print("No fibril record found")
-try:
-    pxsize, dz=np.genfromtxt(mainDir+'\pxsize.csv', delimiter=',')[1];
-except:
-    print("No pixelsize file")
-try:
-    morphComp=np.load(exportDir+r'\morphComp.npy');
-except:
-    print("No fibril record found")
-try:
-    props=np.load(exportDir+r'\props.npy');
-except:
-    print("No properties found")
+    print("Error, no fibrec, morphComp, props found")
 
 nfibs_0,nplanes=fib_rec_0.shape;
 npix=morphComp.shape[2];
 junk=np.nonzero(np.all(fib_rec_0==-1, axis=0))[0];
 
-def my_histogram(arr,xlabel, title='Histogram',  nbins=10):
-    """
-    For use in future plots, a histogram!
-    """
-    n, bins, patches = plt.hist(arr, nbins, density=False, facecolor='g', alpha=0.75)
-    plt.xlabel(xlabel)
-    plt.ylabel('Number')
-    plt.title(title)
-    plt.grid(True)
-    plt.show()
 #----------------------------------------------------------------------------
 #....................SELECTING FIBRILS OF A CERTAIN LENGTH....................
 #-------------------------------------------------------------------------------
@@ -69,8 +34,7 @@ for i in range(nfibs_0):
     nexist_0[i]=np.max(np.nonzero(fib_rec_0[i]>-1))-np.min(np.nonzero(fib_rec_0[i]>-1))+1;
 longfibs=np.where(nexist_0>nplanes*desired_length)[0]; #the indices of the long fibirls
 title_='Number of entries %i, Number above 90pc %i, Percentage %.1f '%(nfibs_0, longfibs.size, 100*longfibs.size/nfibs_0);
-my_histogram(100*nexist_0/nplanes,'Number of slices present',title=title_, nbins=20)
-
+md.my_histogram(100*nexist_0/nplanes,'Number of slices present',title=title_, nbins=20)
 
 #Erasing fibril record for short fibrils. The only way to map between the two is using longfibs. Reindexing also!
 fib_rec=fib_rec_0[longfibs];
@@ -83,30 +47,30 @@ direction_unit_vectors=np.zeros((nfibs, 3));
 meanperplane=np.mean(np.apply_along_axis(np.max, 1, np.reshape(morphComp, (nplanes,npix**2 ))));
 print('fraction captured in cross section', nfibs/meanperplane)
 
+#%%
+
+#md.animation_inline(morphComp,np.arange(nfibs), fib_rec,0,2)
+
 
 #%%
 
 #Q: which ones are nearly full length but not quite 6/11/2020
 half_length_fibril_indices=np.nonzero((0.5*nplanes<nexist_0)&(nexist_0<=desired_length*nplanes))[0]
-#md.view_fibs_inline_2(morphComp,half_length_fibril_indices, fib_rec_0, nplanes, startplane=0,save=False, axis=3)
-
-
-
-##%%
-#Q: At what point are we losing fibrils?
-half_and_above=longfibs=np.where(nexist_0>nplanes*0.5)[0]
 fib_rec_0.shape
-plt.plot(np.count_nonzero(fib_rec_0[half_and_above]>-1, axis=0), '-b')
+plt.plot(np.count_nonzero(fib_rec_0[half_length_fibril_indices]>-1, axis=0), '.-b')
 plt.xlabel("Plane (/100)");
 plt.ylabel("Nfibrils");
-plt.title("Segments 50% of planes or more");
+plt.grid()
+plt.xticks(np.arange(0,nplanes, 10))
+plt.tick_params(axis="x", bottom=True, top=True, labelbottom=True, labeltop=True)
+plt.title("Examining the fibrils which appear in 50-90% of all planes");
 plt.show()
 
 ##%%
-#Q: where are the fibril ends?
+#Q: where are the fibril ends in the half length group?
 fibril_ends=[];
 
-for fID in half_and_above:
+for fID in half_length_fibril_indices:
     temp=np.nonzero(fib_rec_0[fID]>-1)[0];
     fibril_ends.extend([temp[0],temp[-1]]);
 fibril_ends=np.array(fibril_ends);
@@ -116,26 +80,49 @@ fibril_ends=fibril_ends[fibril_ends<100]
 n, bins, patches = plt.hist(fibril_ends, nplanes, density=False, facecolor='g', alpha=0.75)
 plt.xlabel("Plane")
 plt.ylabel('Number')
-plt.ylim(0,45)
+unique, counts = np.unique(fibril_ends, return_counts=True)
+plt.ylim(0,max(counts))
 plt.vlines(junk+0.5, 0, 1000);
 plt.title("Location of Fibril ends, 50% and longer segments excluding 0 and 100")
-plt.grid(True, )
+plt.grid(True)
+plt.tick_params(axis="x", bottom=True, top=True, labelbottom=True, labeltop=True)
 plt.show()
 print("%i out of %i are 0 and 100, thats %lf percent" % (N-fibril_ends.size,N,100* (N-fibril_ends.size)/N))
 
+np.vstack((unique, counts)).T
 
 ##%%
-help(md.export_mapping_animation)
 
-exportDir=r"C:\Users\t97721hr\Dropbox (The University of Manchester)\Fibril Tracking Algorithm\dropped_fibril_inquiry"
-md.export_mapping_animation(exportDir, morphComp,half_length_fibril_indices,fib_rec_0,nplanes, 0, '\\50-90PC_fibs_9100_dataset')
+#Question: Where are the fibril ends (ALL)
+
+f_tops=[];
+f_bottoms=[];
+
+for fID in range(nfibs_0):
+    temp=np.nonzero(fib_rec_0[fID]>-1)[0];
+    f_tops.append(temp[0])
+    f_bottoms.append(temp[-1])
+#fibril_ends=fibril_ends[fibril_ends>0]
+#fibril_ends=fibril_ends[fibril_ends<100]
+
+n, bins, patches = plt.hist(f_tops, nplanes, density=False, facecolor='r', alpha=0.5)
+
+
+n, bins, patches = plt.hist(f_bottoms, nplanes, density=False, facecolor='b', alpha=0.5)
+plt.xlabel("Plane")
+plt.ylabel('Number')
+#unique, counts = np.unique(fibril_ends, return_counts=True)
+#plt.ylim(0,max(counts))
+plt.vlines(junk+0.5, 0, 1000);
+plt.grid(True)
+plt.tick_params(axis="x", bottom=True, top=True, labelbottom=True, labeltop=True)
+plt.show()
+
 
 
 #%%
-#All selected fibs
-md.view_fibs_inline_2(morphComp,np.arange(nfibs), fib_rec, nplanes, startplane=0,save=False, axis=3)
 
-
+md.export_animation(resultsDir,"dropped_fibril_inquiry_50to90", morphComp,half_length_fibril_indices,fib_rec_0, dt=1000)
 
 #%%STOPLINE 6th Nov
 
@@ -205,7 +192,7 @@ lengths_scaled*=nplanes/(fas_len*nexist);
 #How long are the long fibrils?
 my_histogram(lengths_scaled, 'Length (scaled by number of slices present)', title='');
 
-np.save(exportDir+r'\scaledlengths', lengths_scaled);
+np.save(resultsDir+r'\scaledlengths', lengths_scaled);
 
 
 
@@ -221,7 +208,7 @@ def fibril_radius(i): #maps between props and fibrec
     mean = np.mean(radii, axis=0);
     return mean;
 radii=np.array([fibril_radius(i) for i in range(nfibs)])
-np.save(exportDir+r'\radii', radii);
+np.save(resultsDir+r'\radii', radii);
 my_histogram(radii, 'Radius (nm)')
 
 
@@ -236,7 +223,7 @@ def fibril_area(i): #maps between props and fibrec
     mean = np.mean(area, axis=0);
     return mean;
 area=np.array([fibril_area(i) for i in range(nfibs)])
-np.save(exportDir+r'\area.npy', area);
+np.save(resultsDir+r'\area.npy', area);
 my_histogram(area/10**6, 'Area (um^2)')
 #%%----------------Length vs cross secitonal Area
 
