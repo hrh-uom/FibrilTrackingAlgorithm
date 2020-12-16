@@ -20,12 +20,12 @@ plt.rcParams['font.size']=16
 plt.rcParams['lines.linewidth'] = 2.0
 plt.rcParams['animation.ffmpeg_path'] = 'C:\\FFmpeg\\bin\\ffmpeg.exe'  # SPECIFIC TO YOUR MACHINE, for inline animations
 #a test commit
-#another test commit 
+#another test commit
 #----------------------------------------------------------------------------------
 #...............................1. USER INPUT .................................
 #------------------------------------------------------------------------------------
-fromscratch=True
-whichdata=9.15;skip=1
+fromscratch=False
+whichdata=0;skip=1
 a, b, c=10,0.1,5
 
 #----------------------------------------------------------------------------------
@@ -78,7 +78,6 @@ def create_properties_table(morphComp):
 
 dir3V=md.find_3V_data(whichdata); # find the relevant data based on the timepoint desired
 pxsize, dz=np.genfromtxt( dir3V+'pxsize.csv', delimiter=',')[1] #import voxel size
-Lscale = 200/pxsize #a lengthscale converted into pixels , here, 200nm.
 junk=pd.read_csv( dir3V+'junkslices.csv', header=None).to_numpy().T[0] #which slices are broken
 dirResults= dir3V+'results\\' #Create subfolder (if it doesnt already exist!)
 md.create_Directory(dirResults)
@@ -94,6 +93,8 @@ else: #to save time
     morphComp=np.load(dirResults+"morphComp.npy")
     props=np.load(dirResults+"props.npy")
     nplanes, npix, _=morphComp.shape
+
+Lscale=np.median(np.ravel(props[:,:,5])) # A typical lengthscale, calculated from the median value of feret diameter, in pixels. To find the equiv in nm, multiply by pxsize
 
 #---------------------------------------------------------------------------
 #.................................3. FIBRIL MAPPING...........................
@@ -112,10 +113,16 @@ def err_c(pID, i,prev_i, j, dz_b, dz_f):
     prevcent=props[pID-dz_b, prev_i, 0:2]
     predictedcent=currentcent+dz_f*(currentcent-prevcent)  #add a dz here
     return np.linalg.norm(predictedcent-props[pID+dz_f, j, 0:2])/Lscale
+
 def err_e(pID, i, j, dz_f):#error in eccentricity
  return  np.abs(props[pID, i, 4]-props[pID+dz_f, j, 4])
+
 def err_a(pID, i, j, dz_f): #error in area
  return np.abs(props[pID+dz_f, j, 3]-props[pID, i, 3])/props[pID, i, 3]
+#under construction 
+#def err_f(pID, i, j, dz_f): #error in feret diameter
+ #return np.abs(props[pID+dz_f, j, 5]-props[pID, i, 3])/props[pID, i, 3]
+
 def err(pID, fID, prev_i, j,dz_b, dz_f, a, b, c):  #not ensuring values need to ve <1
     if pID==0:
         return (1/(a+b+c)) *(a*err_c_v(pID, fID, j,dz_f)+b*err_e(pID, fID, j,dz_f)+c*err_a(pID, fID, j,dz_f))
