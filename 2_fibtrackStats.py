@@ -47,84 +47,13 @@ direction_unit_vectors=np.zeros((nfibs, 3));
 meanperplane=np.mean(np.apply_along_axis(np.max, 1, np.reshape(morphComp, (nplanes,npix**2 ))));
 print('fraction captured in cross section', nfibs/meanperplane)
 
-#%%
-
-#md.animation_inline(morphComp,np.arange(nfibs), fib_rec,0,2)
-
-
-#%%
-
-#Q: which ones are nearly full length but not quite 6/11/2020
-half_length_fibril_indices=np.nonzero((0.5*nplanes<nexist_0)&(nexist_0<=desired_length*nplanes))[0]
-fib_rec_0.shape
-plt.plot(np.count_nonzero(fib_rec_0[half_length_fibril_indices]>-1, axis=0), '.-b')
-plt.xlabel("Plane (/100)");
-plt.ylabel("Nfibrils");
-plt.grid()
-plt.xticks(np.arange(0,nplanes, 10))
-plt.tick_params(axis="x", bottom=True, top=True, labelbottom=True, labeltop=True)
-plt.title("Examining the fibrils which appear in 50-90% of all planes");
-plt.show()
-
-##%%
-#Q: where are the fibril ends in the half length group?
-fibril_ends=[];
-
-for fID in half_length_fibril_indices:
-    temp=np.nonzero(fib_rec_0[fID]>-1)[0];
-    fibril_ends.extend([temp[0],temp[-1]]);
-fibril_ends=np.array(fibril_ends);
-N=fibril_ends.size
-fibril_ends=fibril_ends[fibril_ends>0]
-fibril_ends=fibril_ends[fibril_ends<100]
-n, bins, patches = plt.hist(fibril_ends, nplanes, density=False, facecolor='g', alpha=0.75)
-plt.xlabel("Plane")
-plt.ylabel('Number')
-unique, counts = np.unique(fibril_ends, return_counts=True)
-plt.ylim(0,max(counts))
-plt.vlines(junk+0.5, 0, 1000);
-plt.title("Location of Fibril ends, 50% and longer segments excluding 0 and 100")
-plt.grid(True)
-plt.tick_params(axis="x", bottom=True, top=True, labelbottom=True, labeltop=True)
-plt.show()
-print("%i out of %i are 0 and 100, thats %lf percent" % (N-fibril_ends.size,N,100* (N-fibril_ends.size)/N))
-
-np.vstack((unique, counts)).T
-
-##%%
-
-#Question: Where are the fibril ends (ALL)
-
-f_tops=[];
-f_bottoms=[];
-
-for fID in range(nfibs_0):
-    temp=np.nonzero(fib_rec_0[fID]>-1)[0];
-    f_tops.append(temp[0])
-    f_bottoms.append(temp[-1])
-#fibril_ends=fibril_ends[fibril_ends>0]
-#fibril_ends=fibril_ends[fibril_ends<100]
-
-n, bins, patches = plt.hist(f_tops, nplanes, density=False, facecolor='r', alpha=0.5)
+#Export Animation
+md.export_animation(resultsDir,"dropped_fibril_inquiry_50to90", morphComp,nfibs,fib_rec, dt=1000)
 
 
-n, bins, patches = plt.hist(f_bottoms, nplanes, density=False, facecolor='b', alpha=0.5)
-plt.xlabel("Plane")
-plt.ylabel('Number')
-#unique, counts = np.unique(fibril_ends, return_counts=True)
-#plt.ylim(0,max(counts))
-plt.vlines(junk+0.5, 0, 1000);
-plt.grid(True)
-plt.tick_params(axis="x", bottom=True, top=True, labelbottom=True, labeltop=True)
-plt.show()
-
-
-
-#%%
-
-md.export_animation(resultsDir,"dropped_fibril_inquiry_50to90", morphComp,half_length_fibril_indices,fib_rec_0, dt=1000)
-
-#%%STOPLINE 6th Nov
+#----------------------------------------------------------------------------
+#....................CALCULATING CRITICAL STRAIN....................
+#-------------------------------------------------------------------------------
 
 def fascicleCoord(pID):
     """
