@@ -20,6 +20,7 @@ plt.rcParams['font.size']=16
 plt.rcParams['lines.linewidth'] = 2.0
 plt.rcParams['animation.ffmpeg_path'] = 'C:\\FFmpeg\\bin\\ffmpeg.exe'  # SPECIFIC TO YOUR MACHINE, for inline animations
 
+ #
 #----------------------------------------------------------------------------------
 #...............................1. USER INPUT .................................
 #------------------------------------------------------------------------------------
