@@ -5,8 +5,6 @@ from random import randint
 plt.rcParams['figure.figsize'] = [10, 7.5] #default plot size
 plt.rcParams['font.size']=16
 plt.rcParams['lines.linewidth'] = 2.0
-
-
 #----------------------------------------------------------------------------
 #.....................................USER INPUT.............................
 #-------------------------------------------------------------------------------
@@ -115,11 +113,11 @@ plot_fib_tops_bottoms()
 #..............................ANIMATIONS, OPTIONAL....................
 #-------------------------------------------------------------------------------
 # DROPPED
-md.export_animation(resultsDir,"dropped_fibril_inquiry_50to90", morphComp,half_length_fibril_indices,fib_rec_0, dt=1000)
+#md.export_animation(resultsDir,"dropped_fibril_inquiry_50to90", morphComp,half_length_fibril_indices,fib_rec_0, dt=1000)
 
 #%% ALL
 #md.animation_inline(morphComp,np.arange(nfibs), fib_rec,0,2)
-md.export_animation(resultsDir,"90pc_plus_animation", morphComp,np.arange(nfibs),fib_rec, dt=1000)
+#md.export_animation(resultsDir,"90pc_plus_animation", morphComp,np.arange(nfibs),fib_rec, dt=1000)
 
 #%%----------------------------------------------------------------------------
 #....................GEOMETRY OF FIBRIL POPULATION....................
@@ -191,17 +189,17 @@ np.save(resultsDir+r'\scaledlengths', lengths_scaled)
 
 #%%---------------------------Radius of each fibril
 
-def fibril_FDs(i): #maps between props and fibrec
-    FDs=np.full(nplanes,-1.)  #an array of the centroid co-ordinates for each fibril
+def fibril_fib_FDs(i): #maps between props and fibrec
+    fib_FDs=np.full(nplanes,-1.)  #an array of the centroid co-ordinates for each fibril
     for pID in range(nplanes):
         if fib_rec[i, pID]!=-1:
-            FDs[pID]=(props[pID, fib_rec[i,pID], 5])*pxsize
-    FDs=FDs[FDs>-1.]  #getting rid of junk slices / places where absent
-    mean = np.mean(FDs, axis=0)
+            fib_FDs[pID]=(props[pID, fib_rec[i,pID], 5])*pxsize
+    fib_FDs=fib_FDs[fib_FDs>-1.]  #getting rid of junk slices / places where absent
+    mean = np.mean(fib_FDs, axis=0)
     return mean
-FDs=np.array([fibril_FDs(i) for i in range(nfibs)])
-np.save(resultsDir+r'\FDs', FDs)
-md.my_histogram(FDs, 'Minimum Feret Diameter (nm)', 'Feret Diameter distribution')
+fib_FDs=np.array([fibril_fib_FDs(i) for i in range(nfibs)])
+np.save(resultsDir+r'\fib_FDs', fib_FDs)
+md.my_histogram(fib_FDs, 'Minimum Feret Diameter (nm)', 'Feret Diameter distribution')
 
 #%% ------------------------Area of each fibrils
 
@@ -226,4 +224,21 @@ plt.show()
 #%%----------------------------------------------------------------------------
 #....................TESTING FOR STATISTICAL SIGNIFICANCE ....................
 #-------------------------------------------------------------------------------
-#test
+fib_FDs.shape
+seg_FDs=np.ravel(props[:,:,5]*pxsize)
+from scipy import stats as stats
+x=stats.ks_2samp(fib_FDs, seg_FDs)
+type(x)
+x
+
+np.mean(fib_FDs)
+np.mean(seg_FDs)
+
+
+import importlib
+importlib.reload(md);
+
+np.max(fib_FDs)
+np.max(seg_FDs)
+
+md.my_histogram([fib_FDs, seg_FDs], 'Feret Diameter (nm)', labels=['mapped fibrils', 'segments in vol'], dens=True, nbins=20, cols=['red', 'lime'], xlims=[0,500])
