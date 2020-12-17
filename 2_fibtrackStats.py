@@ -48,8 +48,8 @@ meanperplane=np.mean(np.apply_along_axis(np.max, 1, np.reshape(morphComp, (nplan
 print('fraction captured in cross section', nfibs/meanperplane)
 
 #Export Animation
-md.export_animation(resultsDir,"dropped_fibril_inquiry_50to90", morphComp,nfibs,fib_rec, dt=1000)
-
+md.export_animation(resultsDir,"dropped_fibril_inquiry_50to90", morphComp,np.arange(nfibs),fib_rec, dt=1000)
+#%%
 
 #----------------------------------------------------------------------------
 #....................CALCULATING CRITICAL STRAIN....................
