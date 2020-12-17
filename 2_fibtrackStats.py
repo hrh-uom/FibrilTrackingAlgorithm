@@ -54,61 +54,63 @@ print('fraction captured in cross section', nfibs/meanperplane)
 #-------------------------------------------------------------------------------
 #Q: which ones are nearly full length but not quite 6/11/2020
 half_length_fibril_indices=np.nonzero((0.5*nplanes<nexist_0)&(nexist_0<=desired_length*nplanes))[0]
-fib_rec_0.shape
-plt.plot(np.count_nonzero(fib_rec_0[half_length_fibril_indices]>-1, axis=0), '.-b')
-plt.xlabel("Plane (/100)")
-plt.ylabel("Nfibrils")
-plt.grid()
-plt.xticks(np.arange(0,nplanes, 10))
-plt.tick_params(axis="x", bottom=True, top=True, labelbottom=True, labeltop=True)
-plt.title("Examining the fibrils which appear in 50-90% of all planes")
-plt.show()
-
+def plot_half_length():
+    plt.plot(np.count_nonzero(fib_rec_0[half_length_fibril_indices]>-1, axis=0), '.-b')
+    plt.xlabel("Plane (/100)")
+    plt.ylabel("Nfibrils")
+    plt.grid()
+    plt.xticks(np.arange(0,nplanes, 10))
+    plt.tick_params(axis="x", bottom=True, top=True, labelbottom=True, labeltop=True)
+    plt.title("Examining the fibrils which appear in 50-90% of all planes")
+    plt.show()
+plot_half_length()
 ##%% Q: where are the fibril ends in the half length group?
-fibril_ends=[]
-
-for fID in half_length_fibril_indices:
-    temp=np.nonzero(fib_rec_0[fID]>-1)[0]
-    fibril_ends.extend([temp[0],temp[-1]])
-fibril_ends=np.array(fibril_ends)
-N=fibril_ends.size
-fibril_ends=fibril_ends[fibril_ends>0]
-fibril_ends=fibril_ends[fibril_ends<100]
-n, bins, patches = plt.hist(fibril_ends, nplanes, density=False, facecolor='g', alpha=0.75)
-plt.xlabel("Plane")
-plt.ylabel('Number')
-unique, counts = np.unique(fibril_ends, return_counts=True)
-plt.ylim(0,max(counts))
-plt.vlines(junk+0.5, 0, 1000)
-plt.title("Location of Fibril ends, 50% and longer segments excluding 0 and 100")
-plt.grid(True)
-plt.tick_params(axis="x", bottom=True, top=True, labelbottom=True, labeltop=True)
-plt.show()
-print("%i out of %i are 0 and 100, thats %lf percent" % (N-fibril_ends.size,N,100* (N-fibril_ends.size)/N))
+def plot_fib_ends_half_length():
+    fibril_ends=[]
+    for fID in half_length_fibril_indices:
+        temp=np.nonzero(fib_rec_0[fID]>-1)[0]
+        fibril_ends.extend([temp[0],temp[-1]])
+    fibril_ends=np.array(fibril_ends)
+    N=fibril_ends.size
+    fibril_ends=fibril_ends[fibril_ends>0]
+    fibril_ends=fibril_ends[fibril_ends<100]
+    n, bins, patches = plt.hist(fibril_ends, nplanes, density=False, facecolor='g', alpha=0.75)
+    plt.xlabel("Plane")
+    plt.ylabel('Number')
+    unique, counts = np.unique(fibril_ends, return_counts=True)
+    plt.ylim(0,max(counts))
+    plt.vlines(junk+0.5, 0, 1000)
+    plt.title("Location of Fibril ends, 50% and longer segments excluding 0 and 100")
+    plt.grid(True)
+    plt.tick_params(axis="x", bottom=True, top=True, labelbottom=True, labeltop=True)
+    plt.show()
+    print("%i out of %i are 0 and 100, thats %lf percent" % (N-fibril_ends.size,N,100* (N-fibril_ends.size)/N))
+plot_fib_ends_half_length()
 
 ##%% Question: Where are the fibril ends (ALL)
-f_tops=[];f_bottoms=[]
-for fID in range(nfibs_0):
-    temp=np.nonzero(fib_rec_0[fID]>-1)[0]
-    f_tops.append(temp[0])
-    f_bottoms.append(temp[-1])
-#fibril_ends=fibril_ends[fibril_ends>0]
-#fibril_ends=fibril_ends[fibril_ends<100]
-cols=['red', 'lime']
-n, bins, patches = plt.hist([f_tops,f_bottoms], nplanes//2, density=False, histtype='bar',color=cols,label=['top', 'tail'])
-#n, bins, patches = plt.hist(f_bottoms, nplanes, density=False, facecolor='b', alpha=0.5)
-plt.xlabel("Plane")
-plt.ylabel('Number')
-plt.title('Where are the fibril ends?')
-unique, counts = np.unique([f_tops,f_bottoms], return_counts=True)
-plt.ylim(0,max(counts))
-plt.vlines(junk+0.5, 0, max(counts), colors='black')
-plt.xticks(np.arange(0, nplanes, 10))
-plt.grid(True)
-plt.tick_params(axis="x", bottom=True, top=True, labelbottom=True, labeltop=True)
-plt.legend()
-plt.show()
 
+def plot_fib_tops_bottoms():
+
+    f_tops=[];f_bottoms=[]
+    for fID in range(nfibs_0):
+        temp=np.nonzero(fib_rec_0[fID]>-1)[0]
+        f_tops.append(temp[0])
+        f_bottoms.append(temp[-1])
+    cols=['red', 'lime']
+    n, bins, patches = plt.hist([f_tops,f_bottoms], nplanes//2, density=False, histtype='bar',color=cols,label=['top', 'tail'])
+    #n, bins, patches = plt.hist(f_bottoms, nplanes, density=False, facecolor='b', alpha=0.5)
+    plt.xlabel("Plane")
+    plt.ylabel('Number')
+    plt.title('Where are the fibril ends?')
+    unique, counts = np.unique([f_tops,f_bottoms], return_counts=True)
+    plt.ylim(0,max(counts))
+    plt.vlines(junk+0.5, 0, max(counts), colors='black')
+    plt.xticks(np.arange(0, nplanes, 10))
+    plt.grid(True)
+    plt.tick_params(axis="x", bottom=True, top=True, labelbottom=True, labeltop=True)
+    plt.legend()
+    plt.show()
+plot_fib_tops_bottoms()
 #%%---------------------------------------------------------------------------
 #..............................ANIMATIONS, OPTIONAL....................
 #-------------------------------------------------------------------------------
@@ -177,13 +179,11 @@ for pID in range (nplanes-1):
         fas_coord_list.append(fascicleCoord(pID))
 fas_len=coOrds_to_length(np.array(fas_coord_list))
 
-
 #Calculate length of each fibril
 for i in range (nfibs):
     lengths_scaled[i]=coOrds_to_length(fibCoords(i))
 lengths_scaled*=nplanes/(fas_len*nexist)
 #plotfibril_withLOBF(randint(nfibs))
-
 
 #How long are the long fibrils?
 md.my_histogram((lengths_scaled-1)*100, 'Critical Strain (%)', title='', nbins=20)
@@ -191,18 +191,17 @@ np.save(resultsDir+r'\scaledlengths', lengths_scaled)
 
 #%%---------------------------Radius of each fibril
 
-def fibril_radius(i): #maps between props and fibrec
-    radii=np.full(nplanes,-1.)  #an array of the centroid co-ordinates for each fibril
+def fibril_FDs(i): #maps between props and fibrec
+    FDs=np.full(nplanes,-1.)  #an array of the centroid co-ordinates for each fibril
     for pID in range(nplanes):
         if fib_rec[i, pID]!=-1:
-            radii[pID]=(props[pID, fib_rec[i,pID], 5])*pxsize
-    radii=radii[radii>-1.]  #getting rid of junk slices / places where absent
-    mean = np.mean(radii, axis=0)
+            FDs[pID]=(props[pID, fib_rec[i,pID], 5])*pxsize
+    FDs=FDs[FDs>-1.]  #getting rid of junk slices / places where absent
+    mean = np.mean(FDs, axis=0)
     return mean
-radii=np.array([fibril_radius(i) for i in range(nfibs)])
-np.save(resultsDir+r'\radii', radii)
-md.my_histogram(radii, 'Minimum Feret Diameter (nm)', 'Feret Diameter distribution')
-
+FDs=np.array([fibril_FDs(i) for i in range(nfibs)])
+np.save(resultsDir+r'\FDs', FDs)
+md.my_histogram(FDs, 'Minimum Feret Diameter (nm)', 'Feret Diameter distribution')
 
 #%% ------------------------Area of each fibrils
 
@@ -223,3 +222,7 @@ plt.plot(lengths_scaled,area/10**6, '.r')
 plt.xlabel('Normalised lengths')
 plt.ylabel('Cross Sectional Area (um^2)')
 plt.show()
+
+#%%----------------------------------------------------------------------------
+#....................TESTING FOR STATISTICAL SIGNIFICANCE ....................
+#-------------------------------------------------------------------------------
