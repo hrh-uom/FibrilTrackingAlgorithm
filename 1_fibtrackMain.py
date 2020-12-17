@@ -109,7 +109,7 @@ def err_c(pID, i,prev_i, j, dz_b, dz_f):
     else:
         currentcent=props[pID, i, 0:2]
         prevcent=props[pID-dz_b, prev_i, 0:2]
-        predictedcent=currentcent+dz_f*(currentcent-prevcent)  
+        predictedcent=currentcent+dz_f*(currentcent-prevcent)
         return np.linalg.norm(predictedcent-props[pID+dz_f, j, 0:2])/Lscale
 
 def err_a(pID, i, j, dz_f): #error in area
