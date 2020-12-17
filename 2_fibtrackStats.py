@@ -23,6 +23,7 @@ except:
 
 nfibs_0,nplanes=fib_rec_0.shape;
 npix=morphComp.shape[2];
+pxsize, dz=np.genfromtxt( md.find_3V_data(whichdata)+'pxsize.csv', delimiter=',')[1] #import voxel size
 junk=np.nonzero(np.all(fib_rec_0==-1, axis=0))[0];
 
 
@@ -54,7 +55,7 @@ print('fraction captured in cross section', nfibs/meanperplane)
 #md.animation_inline(morphComp,np.arange(nfibs), fib_rec,0,2)
 md.export_animation(resultsDir,"90pc_plus_animation", morphComp,np.arange(nfibs),fib_rec, dt=1000)
 
-
+md.beep()
 #%%
 
 #Q: which ones are nearly full length but not quite 6/11/2020
@@ -120,26 +121,6 @@ plt.grid(True)
 plt.tick_params(axis="x", bottom=True, top=True, labelbottom=True, labeltop=True)
 plt.legend()
 plt.show()
-##%%
-
-
-np.random.seed(19680801)
-
-n_bins = 10
-x = np.random.randn(1000, 3)
-
-fig, ax = plt.subplots()
-
-colors = ['red', 'tan', 'lime']
-ax.hist(x, n_bins, density=True, histtype='bar', color=colors, label=colors)
-ax.legend(prop={'size': 10})
-ax.set_title('bars with legend')
-
-fig.tight_layout()
-plt.show()
-
-
-
 
 #%% EXPORT ANIMATION
 
@@ -214,9 +195,6 @@ lengths_scaled*=nplanes/(fas_len*nexist)
 md.my_histogram((lengths_scaled-1)*100, 'Critical Strain (%)', title='', nbins=20)
 
 np.save(resultsDir+r'\scaledlengths', lengths_scaled)
-
-
-
 
 #%%---------------------------Radius of each fibril
 
