@@ -50,6 +50,7 @@ print('fraction captured in cross section', nfibs/meanperplane)
 #%%
 
 #md.animation_inline(morphComp,np.arange(nfibs), fib_rec,0,2)
+md.export_animation(resultsDir,"90pc_plus_animation", morphComp,np.arange(nfibs),fib_rec, dt=1000)
 
 
 #%%

@@ -25,7 +25,7 @@ plt.rcParams['animation.ffmpeg_path'] = 'C:\\FFmpeg\\bin\\ffmpeg.exe'  # SPECIFI
 #------------------------------------------------------------------------------------
 fromscratch=False
 whichdata=0;skip=1
-a, b, c=10,0.1,5
+#a, b, c=10,0.1,5
 
 #----------------------------------------------------------------------------------
 #.........................2. IMPORT IMAGES , LABEL, MEASURE ......................
@@ -78,7 +78,7 @@ def create_properties_table(morphComp):
 dir3V=md.find_3V_data(whichdata); # find the relevant data based on the timepoint desired
 pxsize, dz=np.genfromtxt( dir3V+'pxsize.csv', delimiter=',')[1] #import voxel size
 junk=pd.read_csv( dir3V+'junkslices.csv', header=None).to_numpy().T[0] #which slices are broken
-dirResults= dir3V+'results\\' #Create subfolder (if it doesnt already exist!)
+dirResults= dir3V+'december_reworking_results\\' #Create subfolder (if it doesnt already exist!)
 md.create_Directory(dirResults)
 
 if fromscratch:
@@ -109,7 +109,7 @@ def err_c(pID, i,prev_i, j, dz_b, dz_f):
     else:
         currentcent=props[pID, i, 0:2]
         prevcent=props[pID-dz_b, prev_i, 0:2]
-        predictedcent=currentcent+dz_f*(currentcent-prevcent)  #add a dz here
+        predictedcent=currentcent+dz_f*(currentcent-prevcent)  
         return np.linalg.norm(predictedcent-props[pID+dz_f, j, 0:2])/Lscale
 
 def err_a(pID, i, j, dz_f): #error in area
@@ -123,7 +123,6 @@ def err(pID, fID, prev_i, j,dz_b, dz_f, a, b, c):  #not ensuring values need to 
 
 def errorthresh(a, b, c, skip): #max values for error cutoff.
  return (1/(a+b+c))*(a *skip + b + c )
-
 
 #--------Junk Slice Functions
 def increments_back_forward(pID, junk):
@@ -154,9 +153,8 @@ def M4_fibril_mapping(a,b,c, p,pp, skip=1):
     global fib_rec
     global nplanes
     start_time=time_s()
-    f = open(dirResults+r'\fibtrack_status_update.csv', "a")
-    f.write('\ntime '+md.t_d_stamp()+'\nJunk slices,'+str(junk)+"\npID,nfibs,time since mapping began")
-    f.close()
+    with open(dirResults+r'\fibtrack_status_update.csv', 'a') as status_update:
+        status_update.write('\ntime '+md.t_d_stamp()+'\nJunk slices,'+str(junk)+"\npID,nfibs,time since mapping began")
     nfibs=np.max(morphComp[0]) #number eqivalent to n objects in first slice
     fib_rec=np.full((nfibs,nplanes),-1, dtype=int)  #-1 means no fibril here, as indices are >= 0
     fib_rec[:,0]=np.arange(nfibs)  #use like fib_rec[fID, pID]
@@ -196,23 +194,23 @@ def M4_fibril_mapping(a,b,c, p,pp, skip=1):
             i=i+1
 
         #LOOK FOR MISSED FIBRILS
-        # all=np.arange(np.max(morphComp[pID+dz_f]))
-        # mapped=np.unique(fib_rec[:,pID+dz_f][fib_rec[:,pID+dz_f]>-1])
-        # new_objects=np.setdiff1d(all, mapped)
-        # fibrec_append=np.full((new_objects.size,nplanes),-1, dtype=int)  #an extra bit to tack on the end of the fibril record accounting for all these new objects
-        # fibrec_append[:,pID+dz_f]=new_objects
-        # fib_rec=np.concatenate((fib_rec,fibrec_append))
-        # nfibs+=new_objects.size
+        all=np.arange(np.max(morphComp[pID+dz_f]))
+        mapped=np.unique(fib_rec[:,pID+dz_f][fib_rec[:,pID+dz_f]>-1])
+        new_objects=np.setdiff1d(all, mapped)
+        fibrec_append=np.full((new_objects.size,nplanes),-1, dtype=int)  #an extra bit to tack on the end of the fibril record accounting for all these new objects
+        fibrec_append[:,pID+dz_f]=new_objects
+        fib_rec=np.concatenate((fib_rec,fibrec_append))
+        nfibs+=new_objects.size
 
         # save/export stuff
         with open(dirResults+r'\fibtrack_status_update.csv', 'a') as status_update:
             status_update.write('\n'+','.join(map(str,[pID,nfibs,time_s()-start_time])))
-        #np.save(dirResults+'fib_rec', fib_rec)
+        np.save(dirResults+'fib_rec', fib_rec)
 
     print("N Tracked as a percentage: %.3f"%(np.count_nonzero(fib_rec[:, pp]>-1)/np.count_nonzero(fib_rec[:, p]>-1)))
 
 p=0
-pp=5
+pp=lastplane_tomap(junk)
 a,b,c=1,1,1
 M4_fibril_mapping(a, b, c,p, pp)
 
