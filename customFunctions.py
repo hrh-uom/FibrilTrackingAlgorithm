@@ -135,7 +135,7 @@ def my_histogram(arr,xlabel, title='Histogram',  nbins=10):
     """
     A histogram, with number on the y axis
     """
-    n, bins, patches = plt.hist(arr, nbins, density=False, facecolor='g', alpha=0.75)
+    n, bins, patches = plt.hist(arr, nbins, density=False, facecolor='g', edgecolor='black', alpha=0.75)
     plt.xlabel(xlabel)
     plt.ylabel('Number')
     plt.title(title)
