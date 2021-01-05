@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import customFunctions as md
 from random import randint
+import glob
 plt.rcParams['figure.figsize'] = [10, 7.5] #default plot size
 plt.rcParams['font.size']=16
 plt.rcParams['lines.linewidth'] = 2.0
@@ -15,11 +16,19 @@ resultsDir=md.find_3V_data(whichdata)+'results\\';
 #....................IMPORT DATA FROM FIBRIL MAPPING....................
 #------------------------------------------------------------------------------
 try:
-    fib_rec_0=np.load(resultsDir+r'\fib_rec.npy') #original, import fibril record
     morphComp=np.load(resultsDir+r'\morphComp.npy')
     props=np.load(resultsDir+r'\props.npy')
 except:
     print("Error, no fibrec, morphComp, props found")
+
+
+frs= glob.glob( r'C:\Users\t97721hr\Dropbox (The University of Manchester)\Fibril Tracking Algorithm\FTA_for_publication\abc_experiment_december\fibrec_rank_' + '*.npy')
+
+resultsDir=r'C:\Users\t97721hr\Dropbox (The University of Manchester)\Fibril Tracking Algorithm\FTA_for_publication\abc_experiment_december\results'
+
+rank=1
+fib_rec_0=np.load(frs[rank])
+
 nfibs_0,nplanes=fib_rec_0.shape
 npix=morphComp.shape[2]
 pxsize, dz=np.genfromtxt( md.find_3V_data(whichdata)+'pxsize.csv', delimiter=',')[1] #import voxel size
@@ -113,11 +122,11 @@ plot_fib_tops_bottoms()
 #..............................ANIMATIONS, OPTIONAL....................
 #-------------------------------------------------------------------------------
 # DROPPED
-#md.export_animation(resultsDir,"dropped_fibril_inquiry_50to90", morphComp,half_length_fibril_indices,fib_rec_0, dt=1000)
+#md.export_animation(resultsDir,r'\rank_' +rank+ '_dropped_fibril_inquiry_50to90", morphComp,half_length_fibril_indices,fib_rec_0, dt=1000)
 
 #%% ALL
 #md.animation_inline(morphComp,np.arange(nfibs), fib_rec,0,2)
-#md.export_animation(resultsDir,"90pc_plus_animation", morphComp,np.arange(nfibs),fib_rec, dt=1000)
+#md.export_animation(resultsDir,r'\rank_' +str(rank)+ '_90pc_plus_animation', morphComp,np.arange(nfibs),fib_rec, dt=1000)
 
 #%%----------------------------------------------------------------------------
 #....................GEOMETRY OF FIBRIL POPULATION....................
@@ -158,6 +167,7 @@ def plotfibril_withLOBF(i):
     ax.set_xlabel('x', fontsize=20)
     ax.set_ylabel('y',fontsize=20,)
     ax.set_zlabel('z', fontsize=20 )
+    ax.set_zlabel('z', fontsize=20 )
     ax.view_init(elev=50, azim=160)
     plt.show()
 def coOrds_to_length(co_ords):
@@ -185,7 +195,7 @@ lengths_scaled*=nplanes/(fas_len*nexist)
 
 #How long are the long fibrils?
 md.my_histogram((lengths_scaled-1)*100, 'Critical Strain (%)', title='', nbins=20)
-np.save(resultsDir+r'\scaledlengths', lengths_scaled)
+np.save(resultsDir+r'\rank_' +str(rank)+ '_scaledlengths', lengths_scaled)
 
 #%%---------------------------Radius of each fibril
 
@@ -198,8 +208,7 @@ def fibril_fib_FDs(i): #maps between props and fibrec
     mean = np.mean(fib_FDs, axis=0)
     return mean
 fib_FDs=np.array([fibril_fib_FDs(i) for i in range(nfibs)])
-np.save(resultsDir+r'\fib_FDs', fib_FDs)
-md.my_histogram(fib_FDs, 'Minimum Feret Diameter (nm)', 'Feret Diameter distribution')
+np.save(resultsDir+r'\rank_' +str(rank)+ '_fib_FDs', fib_FDs)
 
 #%% ------------------------Area of each fibrils
 
@@ -212,7 +221,7 @@ def fibril_area(i): #maps between props and fibrec
     mean = np.mean(area, axis=0)
     return mean
 area=np.array([fibril_area(i) for i in range(nfibs)])
-np.save(resultsDir+r'\area.npy', area)
+np.save(resultsDir+r'\rank_' +str(rank)+ '_area.npy', area)
 md.my_histogram(area/10**6, 'Area (um^2)', 'Cross Sectional Area of tracked fibrils')
 #%%----------------Length vs cross secitonal Area
 
@@ -228,17 +237,8 @@ fib_FDs.shape
 seg_FDs=np.ravel(props[:,:,5]*pxsize)
 from scipy import stats as stats
 x=stats.ks_2samp(fib_FDs, seg_FDs)
-type(x)
-x
 
-np.mean(fib_FDs)
-np.mean(seg_FDs)
+md.my_histogram([fib_FDs, seg_FDs], 'Feret Diameter (nm)', labels=['mapped fibrils', 'segments in vol'], dens=True, nbins=30, cols=['red', 'lime'], xlims=[0,500])
 
-
-import importlib
-importlib.reload(md);
-
-np.max(fib_FDs)
-np.max(seg_FDs)
-
-md.my_histogram([fib_FDs, seg_FDs], 'Feret Diameter (nm)', labels=['mapped fibrils', 'segments in vol'], dens=True, nbins=20, cols=['red', 'lime'], xlims=[0,500])
+print(x)
+md.beep()

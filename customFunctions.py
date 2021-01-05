@@ -147,5 +147,3 @@ def my_histogram(arr,xlabel, dens=False, title=' ', labels=[], cols='g', nbins=1
     plt.grid(True)
     plt.legend()
     plt.show()
-x=[9]
-len(x)
