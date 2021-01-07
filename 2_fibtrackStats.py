@@ -6,7 +6,6 @@ plt.rcParams['figure.figsize'] = [10, 7.5] #default plot size
 plt.rcParams['font.size']=16
 plt.rcParams['lines.linewidth'] = 2.0
 
-#testcommit 
 #----------------------------------------------------------------------------
 #.....................................USER INPUT.............................
 #-------------------------------------------------------------------------------
@@ -189,38 +188,74 @@ lengths_scaled*=nplanes/(fas_len*nexist)
 md.my_histogram((lengths_scaled-1)*100, 'Critical Strain (%)', title='', nbins=20)
 np.save(resultsDir+r'\scaledlengths', lengths_scaled)
 
-#%%---------------------------Radius of each fibril
+#%%---------------------------Feret Diameter of each fibril
 
-def fibril_fib_FDs(i): #maps between props and fibrec
-    fib_FDs=np.full(nplanes,-1.)  #an array of the centroid co-ordinates for each fibril
+def fibril_MFD(i): #maps between props and fibrec
+    feret_planewise=np.full(nplanes,-1.)  #an array of the centroid co-ordinates for each fibril
     for pID in range(nplanes):
         if fib_rec[i, pID]!=-1:
-            fib_FDs[pID]=(props[pID, fib_rec[i,pID], 5])*pxsize
-    fib_FDs=fib_FDs[fib_FDs>-1.]  #getting rid of junk slices / places where absent
-    mean = np.mean(fib_FDs, axis=0)
-    return mean
-fib_FDs=np.array([fibril_fib_FDs(i) for i in range(nfibs)])
+            feret_planewise[pID]=(props[pID, fib_rec[i,pID], 5])*pxsize
+    feret_planewise=feret_planewise[feret_planewise>-1.]  #getting rid of junk slices / places where absent
+    mean = np.mean(feret_planewise, axis=0)
+    return mean,feret_planewise
+
+
+x=np.full(nfibs-1, -1.)
+y=x.copy()
+
+for i in range(nfibs-1):
+    x[i]=fibril_MFD(i)[0]
+    fd_planewise=fibril_MFD(i)[1]
+    y[i]=100*np.mean(np.abs(np.diff(fd_planewise))/md.moving_avg(fd_planewise,2))
+
+plt.scatter(x, y)
+plt.title("Is there a relationship between mean minimum feret diameter and \npercentage change in consecutive segment minimum feret diameter")
+plt.xlabel("Mean segment minimum feret diameter (nm)")
+plt.ylabel("Mean %  minimum feret diameter change \nin pairs of consecutive slices")
+
+#%%
+fib_FDs=np.array([fibril_MFD(i)[0] for i in range(nfibs)])
 np.save(resultsDir+r'\fib_FDs', fib_FDs)
 md.my_histogram(fib_FDs, 'Minimum Feret Diameter (nm)', 'Feret Diameter distribution')
 
+
+
 #%% ------------------------Area of each fibrils
 
-def fibril_area(i): #maps between props and fibrec
-    area=np.full(nplanes,-1.)  #an array of the centroid co-ordinates for each fibril
+def fibril_area(i):
+    """
+    Delivers fibril area in nm^2, for some fibril in the Fibril Record i
+    """
+    area_planewise=np.full(nplanes,-1.)  #an array of the areas for each fibril
     for pID in range(nplanes):
         if fib_rec[i, pID]!=-1:
-            area[pID]=(props[pID, fib_rec[i,pID],3])*(pxsize**2)
-    area=area[area>-1.]  #getting rid of junk slices / places where absent
-    mean = np.mean(area, axis=0)
-    return mean
-area=np.array([fibril_area(i) for i in range(nfibs)])
+            area_planewise[pID]=(props[pID, fib_rec[i,pID],3])*(pxsize**2)
+    area_planewise=area_planewise[area_planewise>-1.]  #getting rid of junk slices / places where absent
+    mean = np.mean(area_planewise)
+    return mean, area_planewise
+
+x=np.full(nfibs-1, -1.)
+y=x.copy()
+
+for i in range(nfibs-1):
+    x[i]=fibril_area(i)[0]
+    area_planewise=fibril_area(i)[1]
+    y[i]=np.mean(np.abs(np.diff(area_planewise))/md.moving_avg(area_planewise,2))
+
+plt.scatter(x/1000, y)
+plt.title("Is there a relationship between mean fibril cross sectional area and \npercentage change in consecutive segment areas")
+plt.xlabel("Mean segment area ( $10^3$ nm$^2$)")
+plt.ylabel("Mean % area change in pairs of consecutive slices")
+
+#%% tEMP BREAK REMOVE THIS
+area=np.array([fibril_area(i)[0] for i in range(nfibs)])
 np.save(resultsDir+r'\area.npy', area)
-md.my_histogram(area/10**6, 'Area (um^2)', 'Cross Sectional Area of tracked fibrils')
+md.my_histogram(area/100, 'Area ($10^3$ nm$^2$)', 'Cross Sectional Area of tracked fibrils')
 #%%----------------Length vs cross secitonal Area
 
 plt.plot(lengths_scaled,area/10**6, '.r')
 plt.xlabel('Normalised lengths')
-plt.ylabel('Cross Sectional Area (um^2)')
+plt.ylabel('Cross Sectional Area (um$^2$)')
 plt.show()
 
 #%%----------------------------------------------------------------------------
