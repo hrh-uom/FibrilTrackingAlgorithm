@@ -242,6 +242,7 @@ for i in range(nfibs-1):
     area_planewise=fibril_area(i)[1]
     y[i]=np.mean(np.abs(np.diff(area_planewise))/md.moving_avg(area_planewise,2))
 
+#test
 plt.scatter(x/1000, y)
 plt.title("Is there a relationship between mean fibril cross sectional area and \npercentage change in consecutive segment areas")
 plt.xlabel("Mean segment area ( $10^3$ nm$^2$)")
