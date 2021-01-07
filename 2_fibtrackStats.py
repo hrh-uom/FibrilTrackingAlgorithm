@@ -21,10 +21,9 @@ try:
 except:
     print("Error, no fibrec, morphComp, props found")
 
+frs= glob.glob( r'C:\Users\t97721hr\Dropbox (The University of Manchester)\Fibril Tracking Algorithm\abc_experiment_december\fibrec_rank_' + '*.npy')
 
-frs= glob.glob( r'C:\Users\t97721hr\Dropbox (The University of Manchester)\Fibril Tracking Algorithm\FTA_for_publication\abc_experiment_december\fibrec_rank_' + '*.npy')
-
-resultsDir=r'C:\Users\t97721hr\Dropbox (The University of Manchester)\Fibril Tracking Algorithm\FTA_for_publication\abc_experiment_december\results'
+resultsDir=r'C:\Users\t97721hr\Dropbox (The University of Manchester)\Fibril Tracking Algorithm\abc_experiment_december\results'
 
 rank=1
 fib_rec_0=np.load(frs[rank])
