@@ -199,26 +199,9 @@ def fibril_MFD(i): #maps between props and fibrec
     mean = np.mean(feret_planewise, axis=0)
     return mean,feret_planewise
 
-
-x=np.full(nfibs-1, -1.)
-y=x.copy()
-
-for i in range(nfibs-1):
-    x[i]=fibril_MFD(i)[0]
-    fd_planewise=fibril_MFD(i)[1]
-    y[i]=100*np.mean(np.abs(np.diff(fd_planewise))/md.moving_avg(fd_planewise,2))
-
-plt.scatter(x, y)
-plt.title("Is there a relationship between mean minimum feret diameter and \npercentage change in consecutive segment minimum feret diameter")
-plt.xlabel("Mean segment minimum feret diameter (nm)")
-plt.ylabel("Mean %  minimum feret diameter change \nin pairs of consecutive slices")
-
-#%%
 fib_FDs=np.array([fibril_MFD(i)[0] for i in range(nfibs)])
 np.save(resultsDir+r'\fib_FDs', fib_FDs)
 md.my_histogram(fib_FDs, 'Minimum Feret Diameter (nm)', 'Feret Diameter distribution')
-
-
 
 #%% ------------------------Area of each fibrils
 
@@ -234,21 +217,6 @@ def fibril_area(i):
     mean = np.mean(area_planewise)
     return mean, area_planewise
 
-x=np.full(nfibs-1, -1.)
-y=x.copy()
-
-for i in range(nfibs-1):
-    x[i]=fibril_area(i)[0]
-    area_planewise=fibril_area(i)[1]
-    y[i]=np.mean(np.abs(np.diff(area_planewise))/md.moving_avg(area_planewise,2))
-
-#test
-plt.scatter(x/1000, y)
-plt.title("Is there a relationship between mean fibril cross sectional area and \npercentage change in consecutive segment areas")
-plt.xlabel("Mean segment area ( $10^3$ nm$^2$)")
-plt.ylabel("Mean % area change in pairs of consecutive slices")
-
-#%% tEMP BREAK REMOVE THIS
 area=np.array([fibril_area(i)[0] for i in range(nfibs)])
 np.save(resultsDir+r'\area.npy', area)
 md.my_histogram(area/100, 'Area ($10^3$ nm$^2$)', 'Cross Sectional Area of tracked fibrils')
@@ -266,17 +234,6 @@ fib_FDs.shape
 seg_FDs=np.ravel(props[:,:,5]*pxsize)
 from scipy import stats as stats
 x=stats.ks_2samp(fib_FDs, seg_FDs)
-type(x)
-x
 
-np.mean(fib_FDs)
-np.mean(seg_FDs)
-
-
-import importlib
-importlib.reload(md);
-
-np.max(fib_FDs)
-np.max(seg_FDs)
-
+print(x)
 md.my_histogram([fib_FDs, seg_FDs], 'Feret Diameter (nm)', labels=['mapped fibrils', 'segments in vol'], dens=True, nbins=20, cols=['red', 'lime'], xlims=[0,500])
