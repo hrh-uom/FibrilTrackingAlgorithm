@@ -130,7 +130,7 @@ def red_objects_1_plane(obj_group, pID):
  rgblabel=label2rgb(labels, bg_label=0, colors=[(1, 0, 0), (1, 1, 1)])
  plt.imshow(rgblabel)
 
-#---------------STATISTICAL PLOTS-------------------
+#---------------PLOTS-------------------
 def my_histogram(arr,xlabel, dens=False, title=' ', labels=[], cols='g', nbins=10, density=False, xlims=0):
     """
     A histogram, with number on the y axis
@@ -147,5 +147,12 @@ def my_histogram(arr,xlabel, dens=False, title=' ', labels=[], cols='g', nbins=1
     plt.grid(True)
     plt.legend()
     plt.show()
-x=[9]
-len(x)
+#------------------------------STATS---------------------
+
+def moving_avg(data, window_width):
+    """
+    A rolling average over a 1d array
+    """
+    cumsum_vec = np.cumsum(np.insert(data, 0, 0))
+    ma_vec = (cumsum_vec[window_width:] - cumsum_vec[:-window_width]) / window_width
+    return ma_vec
