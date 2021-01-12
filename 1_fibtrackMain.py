@@ -250,11 +250,13 @@ def ndropped(a, b, c, pID_list):
 
 
 #%%
+dirResults=r'C:\Users\t97721hr\Dropbox (The University of Manchester)\Fibril Tracking Algorithm\abc_january'
+
 start_time =time_s();
 
 a=1;
-b=np.logspace(-2,2,20)
-c=np.logspace(-2,2,20)
+b=np.linspace(0,10,20)
+c=np.linspace(0,10,20)
 # filling the heatmap, value by value
 fun_map = np.empty((b.size, c.size))
 def make_abc_map(fun_map):
@@ -264,21 +266,24 @@ def make_abc_map(fun_map):
             random_planes=np.random.choice(np.setdiff1d(np.arange(nplanes-1),junk),10)
             fun_map[i,j] = np.mean(ndropped(a, b[i],c[j], random_planes))
 
+np.save("heatmap_abc", fun_map)
+
 
 #%%
-dirResults=r'C:\Users\t97721hr\Dropbox (The University of Manchester)\Fibril Tracking Algorithm\FTA_for_publication\abc_experiment_december'
 
-fun_map=np.load(dirResults+"\\heatmap_abc_dec.npy")
+fun_map=np.load(dirResults+"\\heatmap_abc.npy")
 
 fig = plt.figure()
 s = fig.add_subplot(1, 1, 1, xlabel='b', ylabel='c')
-extent = [np.log10( b[0]), np.log10( b[-1]), np.log10( c[0]), np.log10( c[-1])];
+extent = [ b[0], b[-1],  c[0],  c[-1]];
 im = plt.imshow(fun_map.T,extent=extent, origin='lower') #the transpose is because of the row column effect
 fig.colorbar(im);
-plt.title('1 in how many fibrils dropped. Axes are powers of 10, a=1')
-#plt.savefig('abc_investigation_dec.png')
+plt.title('1 in how many fibrils dropped. a=1')
+plt.savefig('abc.png')
 #print ((time_s()-start_time)/60)
-#np.save("heatmap_abc_dec", fun_map)
+
+
+
 
 #%%
 #SORTING THE VALUES OF B AND C
