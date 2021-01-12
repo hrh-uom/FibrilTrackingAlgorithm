@@ -265,7 +265,7 @@ def make_abc_map(fun_map):
     for i in range(b.size):
         print(i)
         for j in range(c.size):
-            random_planes=np.random.choice(np.setdiff1d(np.arange(nplanes-1),junk),10)
+            random_planes=np.random.choice(np.setdiff1d(np.arange(nplanes-1),junk),5)
             fun_map[i,j] = np.mean(ndropped(a, b[i],c[j], random_planes))
 
 np.save("heatmap_abc", fun_map)
