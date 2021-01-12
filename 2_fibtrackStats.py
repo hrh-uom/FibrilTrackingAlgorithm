@@ -199,9 +199,9 @@ def fibril_MFD(i): #maps between props and fibrec
     mean = np.mean(feret_planewise, axis=0)
     return mean,feret_planewise
 
-fib_FDs=np.array([fibril_MFD(i)[0] for i in range(nfibs)])
-np.save(resultsDir+r'\fib_FDs', fib_FDs)
-md.my_histogram(fib_FDs, 'Minimum Feret Diameter (nm)', 'Feret Diameter distribution')
+fib_MFDs=np.array([fibril_MFD(i)[0] for i in range(nfibs)])
+np.save(resultsDir+r'\fib_MFDs', fib_MFDs)
+md.my_histogram(fib_MFDs, 'Minimum Feret Diameter (nm)', 'Minimum Feret Diameter distribution')
 
 #%% ------------------------Area of each fibrils
 
@@ -230,10 +230,10 @@ plt.show()
 #%%----------------------------------------------------------------------------
 #....................TESTING FOR STATISTICAL SIGNIFICANCE ....................
 #-------------------------------------------------------------------------------
-fib_FDs.shape
+fib_MFDs.shape
 seg_FDs=np.ravel(props[:,:,5]*pxsize)
 from scipy import stats as stats
-x=stats.ks_2samp(fib_FDs, seg_FDs)
+x=stats.ks_2samp(fib_MFDs, seg_FDs)
 
 print(x)
-md.my_histogram([fib_FDs, seg_FDs], 'Feret Diameter (nm)', labels=['mapped fibrils', 'segments in vol'], dens=True, nbins=20, cols=['red', 'lime'], xlims=[0,500])
+md.my_histogram([fib_MFDs, seg_FDs], 'Feret Diameter (nm)', labels=['mapped fibrils', 'segments in vol'], dens=True, nbins=20, cols=['red', 'lime'], xlims=[0,500])
