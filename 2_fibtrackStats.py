@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import customFunctions as md
-from random import randint
+from scipy import stats
 plt.rcParams['figure.figsize'] = [10, 7.5] #default plot size
 plt.rcParams['font.size']=16
 plt.rcParams['lines.linewidth'] = 2.0
@@ -35,7 +35,8 @@ for i in range(nfibs_0):
     nexist_0[i]=np.max(np.nonzero(fib_rec_0[i]>-1))-np.min(np.nonzero(fib_rec_0[i]>-1))+1
 longfibs=np.where(nexist_0>nplanes*desired_length)[0]  #the indices of the long fibirls
 title_='Number of entries %i, Number above 90pc %i, Percentage %.1f '%(nfibs_0, longfibs.size, 100*longfibs.size/nfibs_0)
-md.my_histogram(100*nexist_0/nplanes,'Number of slices present',title=title_, nbins=20)
+
+md.my_histogram(100*nexist_0/nplanes,'Number of slices present',title=title_, binwidth=5)
 
 #Erasing fibril record for short fibrils. The only way to map between the two is using longfibs. Reindexing also!
 fib_rec=fib_rec_0[longfibs]
@@ -47,6 +48,7 @@ direction_unit_vectors=np.zeros((nfibs, 3))
 #Q: how many fibs are we capturing in cross-section?
 meanperplane=np.mean(np.apply_along_axis(np.max, 1, np.reshape(morphComp, (nplanes,npix**2 ))))
 print('fraction captured in cross section', nfibs/meanperplane)
+
 
 #%%----------------------------------------------------------------------------
 #....................DROPPED FIBRIL INQUIRIES....................
@@ -182,10 +184,9 @@ fas_len=coOrds_to_length(np.array(fas_coord_list))
 for i in range (nfibs):
     lengths_scaled[i]=coOrds_to_length(fibCoords(i))
 lengths_scaled*=nplanes/(fas_len*nexist)
-#plotfibril_withLOBF(randint(nfibs))
 
 #How long are the long fibrils?
-md.my_histogram((lengths_scaled-1)*100, 'Critical Strain (%)', title='', nbins=20)
+md.my_histogram((lengths_scaled-1)*100, 'Critical Strain (%)', title='', binwidth=.5)
 np.save(resultsDir+r'\scaledlengths', lengths_scaled)
 
 #%%---------------------------Feret Diameter of each fibril
@@ -219,7 +220,7 @@ def fibril_area(i):
 
 area=np.array([fibril_area(i)[0] for i in range(nfibs)])
 np.save(resultsDir+r'\area.npy', area)
-md.my_histogram(area/100, 'Area ($10^3$ nm$^2$)', 'Cross Sectional Area of tracked fibrils')
+md.my_histogram(area/100, 'Area ($10^3$ nm$^2$)', 'Cross Sectional Area of tracked fibrils', binwidth=50)
 #%%----------------Length vs cross secitonal Area
 
 plt.plot(lengths_scaled,area/10**6, '.r')
@@ -232,8 +233,12 @@ plt.show()
 #-------------------------------------------------------------------------------
 fib_MFDs.shape
 seg_FDs=np.ravel(props[:,:,5]*pxsize)
-from scipy import stats as stats
-x=stats.ks_2samp(fib_MFDs, seg_FDs)
 
-print(x)
-md.my_histogram([fib_MFDs, seg_FDs], 'Feret Diameter (nm)', labels=['mapped fibrils', 'segments in vol'], dens=True, nbins=20, cols=['red', 'lime'], xlims=[0,500])
+lower, upper=(80, 300)
+relevantSegFDs=seg_FDs[(seg_FDs>lower) & (seg_FDs<upper)]
+kstest=stats.ks_2samp(fib_MFDs, relevantSegFDs)
+result="reject" if kstest[1]<0.05 else "accept"
+
+md.my_histogram([fib_MFDs, relevantSegFDs], 'Feret Diameter (nm)', title=f'$H_0$, these two samples come from the same distribution \n p={kstest[1]:.2e}: {result}', labels=['mapped fibrils', 'segments in vol'], dens=True, binwidth=50, cols=['red', 'lime'])
+x=np.linspace(upper, lower, 1000)
+plt.plot(np.linspace(upper, lower, 1000), stats.kde.gaussian_kde(relevantSegFDs)(x))

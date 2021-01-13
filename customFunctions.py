@@ -131,12 +131,15 @@ def red_objects_1_plane(obj_group, pID):
  plt.imshow(rgblabel)
 
 #---------------PLOTS-------------------
-def my_histogram(arr,xlabel, dens=False, title=' ', labels=[], cols='g', nbins=10, density=False, xlims=0):
+def my_histogram(arr,xlabel, dens=False, title=' ', labels=[], cols='g', binwidth=10, density=False, xlims=0):
     """
     A histogram, with number on the y axis
     """
     #cols=['red', 'lime', 'blue', 'pink']
-    n, bins, patches = plt.hist(arr, nbins, density=dens, histtype='bar', edgecolor='black', color=cols,label=labels)
+    minx=np.min(np.concatenate(arr)) if isinstance(arr,list) else np.min(arr)
+    maxx=np.max(np.concatenate(arr)) if isinstance(arr,list) else np.max(arr)
+    bins=np.arange(binwidth * np.floor(minx/binwidth),binwidth * (1+np.ceil(maxx/binwidth)),binwidth)
+    plt.hist(arr, bins=bins, density=dens, histtype='bar', edgecolor='black', color=cols,label=labels)
     plt.xlabel(xlabel)
     plt.tick_params(axis="x", bottom=True, top=True, labelbottom=True, labeltop=True)
     ylabel='Density' if dens else 'Number'
