@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import customFunctions as md
-from random import randint
+from scipy import stats
 plt.rcParams['figure.figsize'] = [10, 7.5] #default plot size
 plt.rcParams['font.size']=16
 plt.rcParams['lines.linewidth'] = 2.0
@@ -12,6 +12,7 @@ plt.rcParams['lines.linewidth'] = 2.0
 whichdata=0
 desired_length=0.9
 resultsDir=md.find_3V_data(whichdata)+'results\\';
+
 #----------------------------------------------------------------------------
 #....................IMPORT DATA FROM FIBRIL MAPPING....................
 #------------------------------------------------------------------------------
@@ -182,7 +183,6 @@ fas_len=coOrds_to_length(np.array(fas_coord_list))
 for i in range (nfibs):
     lengths_scaled[i]=coOrds_to_length(fibCoords(i))
 lengths_scaled*=nplanes/(fas_len*nexist)
-#plotfibril_withLOBF(randint(nfibs))
 
 #How long are the long fibrils?
 md.my_histogram((lengths_scaled-1)*100, 'Critical Strain (%)', title='', nbins=20)
@@ -199,26 +199,24 @@ def fibril_MFD(i): #maps between props and fibrec
     mean = np.mean(feret_planewise, axis=0)
     return mean,feret_planewise
 
-
 x=np.full(nfibs-1, -1.)
 y=x.copy()
 
 for i in range(nfibs-1):
     x[i]=fibril_MFD(i)[0]
     fd_planewise=fibril_MFD(i)[1]
-    y[i]=100*np.mean(np.abs(np.diff(fd_planewise))/md.moving_avg(fd_planewise,2))
+    #y[i]=100*np.mean(np.abs(np.diff())/md.moving_avg(fd_planewise,2))
+    y[i]=np.mean(np.abs(np.diff(fd_planewise)))
 
 plt.scatter(x, y)
-plt.title("Is there a relationship between mean minimum feret diameter and \npercentage change in consecutive segment minimum feret diameter")
-plt.xlabel("Mean segment minimum feret diameter (nm)")
-plt.ylabel("Mean %  minimum feret diameter change \nin pairs of consecutive slices")
-
+plt.title("Is there a relationship between fibril MFD and \nabsolute difference between consecutive segment MFD")
+plt.xlabel("Fibril MFD (averaged over all planes) (nm)")
+plt.ylabel("Mean change in MFD between consecutive \nsegments in a fibril (nm)")
+plt.show()
 #%%
 fib_FDs=np.array([fibril_MFD(i)[0] for i in range(nfibs)])
 np.save(resultsDir+r'\fib_FDs', fib_FDs)
 md.my_histogram(fib_FDs, 'Minimum Feret Diameter (nm)', 'Feret Diameter distribution')
-
-
 
 #%% ------------------------Area of each fibrils
 
@@ -240,13 +238,25 @@ y=x.copy()
 for i in range(nfibs-1):
     x[i]=fibril_area(i)[0]
     area_planewise=fibril_area(i)[1]
-    y[i]=np.mean(np.abs(np.diff(area_planewise))/md.moving_avg(area_planewise,2))
+    #y[i]=np.mean(np.abs(np.diff(area_planewise))/md.moving_avg(area_planewise,2))
+    y[i]=np.mean(np.abs(np.diff(area_planewise)))
 
-#test
-plt.scatter(x/1000, y)
-plt.title("Is there a relationship between mean fibril cross sectional area and \npercentage change in consecutive segment areas")
-plt.xlabel("Mean segment area ( $10^3$ nm$^2$)")
-plt.ylabel("Mean % area change in pairs of consecutive slices")
+x/=1000;y/=1000 #a units thing, too many zeroes!
+linfit=stats.linregress(x, y)
+fitY=x*linfit.slope+linfit.intercept
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15,7))
+fig.suptitle(f"Is there a relationship between fibril cross sectional area and difference between the areas of consecutive segments. \nLinear fit R-squared: {linfit.rvalue**2:.6f}")
+fig.tight_layout(pad=2)
+ax1.plot(x, y, 'bo')
+ax1.plot(x,fitY,'-r') #plot fitted function
+ax1.set_xlabel("Fibril area - average across all planes ( $10^3$ nm$^2$)", fontsize=14)
+ax1.set_ylabel("Mean area difference between \nconsecutive segments ( $10^3$ nm$^2$)",fontsize=14)
+ax2.hlines(0, np.min(x), np.max(x),colors='r')
+ax2.plot(x, (y-fitY), 'bo')
+ax2.set_xlabel("Fibril area - average across all planes ( $10^3$ nm$^2$)", fontsize=14)
+ax2.set_ylabel("Residual ( $10^3$ nm$^2$) ",fontsize=14)
+plt.show()
+
 
 #%% tEMP BREAK REMOVE THIS
 area=np.array([fibril_area(i)[0] for i in range(nfibs)])
@@ -264,9 +274,7 @@ plt.show()
 #-------------------------------------------------------------------------------
 fib_FDs.shape
 seg_FDs=np.ravel(props[:,:,5]*pxsize)
-from scipy import stats as stats
 x=stats.ks_2samp(fib_FDs, seg_FDs)
-type(x)
 x
 
 np.mean(fib_FDs)
