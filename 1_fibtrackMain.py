@@ -113,7 +113,8 @@ def err_c(pID, i,prev_i, j, dz_b, dz_f):
         return np.linalg.norm(predictedcent-props[pID+dz_f, j, 0:2])/Lscale
 
 def err_a(pID, i, j, dz_f): #error in area
- return np.abs(props[pID+dz_f, j, 3]-props[pID, i, 3])/Ascale
+ #return np.abs(props[pID+dz_f, j, 3]-props[pID, i, 3])/Ascale
+ return np.abs(props[pID+dz_f, j, 3]-props[pID, i, 3])/props[pID, i, 3]
 
 def err_f(pID, i, j, dz_f): #error in feret diameter
  return np.abs(props[pID+dz_f, j, 5]-props[pID, i, 5])/Lscale
