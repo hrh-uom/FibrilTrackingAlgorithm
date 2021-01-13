@@ -268,7 +268,8 @@ def make_abc_map(fun_map):
             random_planes=np.random.choice(np.setdiff1d(np.arange(nplanes-1),junk),5)
             fun_map[i,j] = np.mean(ndropped(a, b[i],c[j], random_planes))
 
-np.save("heatmap_abc", fun_map)
+make_abc_map(fun_map)
+np.save(dirResults+"\\heatmap_abc", fun_map)
 
 
 #%%
@@ -281,7 +282,7 @@ extent = [ b[0], b[-1],  c[0],  c[-1]];
 im = plt.imshow(fun_map.T,extent=extent, origin='lower') #the transpose is because of the row column effect
 fig.colorbar(im);
 plt.title('1 in how many fibrils dropped. a=1')
-plt.savefig('abc.png')
+plt.savefig(dirResults+"\\abc.png")
 #print ((time_s()-start_time)/60)
 
 
@@ -291,14 +292,14 @@ plt.savefig('abc.png')
 #SORTING THE VALUES OF B AND C
 sort_pairs=np.vstack(np.unravel_index((-fun_map).argsort(axis=None, kind='mergesort'), fun_map.shape))
 b_c_values_sorted=np.vstack((b[sort_pairs[0]],c[sort_pairs[1]])).T
-
+np.save(dirResults+ "\\a1_b_c_values_sorted", b_c_values_sorted)
 
 ##%%
 
-for i in range(10):
+for i in range(5):
     a=1
     b,c=b_c_values_sorted[i]
-    abc_string="_rank_%d_a_%.2f_b_%.2f_c_%.2f"%(i+1, a, b, c)
+    abc_string="_rank_%d_a_%.2f_b_%.2f_c_%.2f"%(i, a, b, c)
     M4_fibril_mapping(a, b, c, fib_rec_filename='\\fibrec'+abc_string)
     #print('completed %d of 10 rounds of b,c '%i+1)
 
