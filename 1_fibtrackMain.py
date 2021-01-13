@@ -74,7 +74,7 @@ def create_properties_table(morphComp):
     np.save(dirResults+'props', props)
     return props
     #return temp.shape
-
+#test
 dir3V=md.find_3V_data(whichdata); # find the relevant data based on the timepoint desired
 pxsize, dz=np.genfromtxt( dir3V+'pxsize.csv', delimiter=',')[1] #import voxel size
 junk=pd.read_csv( dir3V+'junkslices.csv', header=None).to_numpy().T[0] #which slices are broken
