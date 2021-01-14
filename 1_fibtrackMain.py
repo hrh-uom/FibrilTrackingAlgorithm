@@ -94,11 +94,10 @@ else: #to save time
     nplanes, npix, _=morphComp.shape
 
 Lscale=np.median(np.ravel(props[:,:,5])) # A typical lengthscale, calculated from the median value of feret diameter, in pixels. To find the equiv in nm, multiply by pxsize
-Ascale=np.median(np.ravel(props[:,:,3]))# A typical area, calculated from the median value of feret diameter, in pixels. To find the equiv in nm, multiply by pxsize
-#---------------------------------------------------------------------------
+#%%---------------------------------------------------------------------------
 #.................................3. FIBRIL MAPPING...........................
 #-------------------------------------------------------------------------------
-#%%------Errors
+#------Errors
 def err_c(pID, i,prev_i, j, dz_b, dz_f):
     """
     centroid error
@@ -111,20 +110,14 @@ def err_c(pID, i,prev_i, j, dz_b, dz_f):
         prevcent=props[pID-dz_b, prev_i, 0:2]
         predictedcent=currentcent+dz_f*(currentcent-prevcent)
         return np.linalg.norm(predictedcent-props[pID+dz_f, j, 0:2])/Lscale
-
 def err_a(pID, i, j, dz_f): #error in area
- #return np.abs(props[pID+dz_f, j, 3]-props[pID, i, 3])/Ascale
  return np.abs(props[pID+dz_f, j, 3]-props[pID, i, 3])/props[pID, i, 3]
-
 def err_f(pID, i, j, dz_f): #error in feret diameter
  return np.abs(props[pID+dz_f, j, 5]-props[pID, i, 5])/Lscale
-
 def err(pID, fID, prev_i, j,dz_b, dz_f, a, b, c):  #not ensuring values need to ve <1
     return (1/(a+b+c)) *(a* err_c(pID, fID, prev_i,j,dz_b, dz_f)+b*err_f(pID, fID, j,dz_f)+c*err_a(pID, fID, j,dz_f))
-
 def errorthresh(a, b, c, skip): #max values for error cutoff.
  return (1/(a+b+c))*(a *skip + b + c )
-
 #--------Junk Slice Functions
 def increments_back_forward(pID, junk):
     """
@@ -149,7 +142,7 @@ def lastplane_tomap(junk):
     while np.any(junk==pID):
      pID-=1
     return pID-increments_back_forward(pID, junk)[0]
-def M4_fibril_mapping(a,b,c, p,pp, skip=1):
+def fibril_mapping(a,b,c,skip=1):
     global nfibs
     global fib_rec
     global nplanes
@@ -160,7 +153,7 @@ def M4_fibril_mapping(a,b,c, p,pp, skip=1):
     fib_rec=np.full((nfibs,nplanes),-1, dtype=int)  #-1 means no fibril here, as indices are >= 0
     fib_rec[:,0]=np.arange(nfibs)  #use like fib_rec[fID, pID]
 
-    for pID in range (p, pp):#(lastplane_tomap(junk)):
+    for pID in range (lastplane_tomap(junk)):
         if np.any(junk==pID):#If the slice is junk, skip the mapping.
             #x=1
             continue
@@ -208,13 +201,14 @@ def M4_fibril_mapping(a,b,c, p,pp, skip=1):
             status_update.write('\n'+','.join(map(str,[pID,nfibs,time_s()-start_time])))
         np.save(dirResults+'fib_rec', fib_rec)
 
-    print("N Tracked as a percentage: %.3f"%(np.count_nonzero(fib_rec[:, pp]>-1)/np.count_nonzero(fib_rec[:, p]>-1)))
-
-p=0
-pp=lastplane_tomap(junk)
+#%%---------------------------------------------------------------------------
+#.................................4. MAIN FLOW ...........................
+#-------------------------------------------------------------------------------
 
 a,b,c=1,1,1
-M4_fibril_mapping(a, b, c,p, pp)
+fibril_mapping(a, b, c)
 
 
-#md.animation_inline(morphComp, np.arange(nfibs), fib_rec, startplane=p, endplane=pp+1)
+#%%---------------------------------------------------------------------------
+#.................................SANDBOX....................................
+#-------------------------------------------------------------------------------
