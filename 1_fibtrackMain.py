@@ -1,5 +1,4 @@
 import numpy as np
-from numpy.random import randint
 import pandas as pd
 from matplotlib import animation, rc, colors
 import matplotlib.pyplot as plt
@@ -12,12 +11,11 @@ from time import time as time_s
 import winsound #for development
 from importlib import reload # reload(module_of_choice);
 import customFunctions as md
-import os
-import csv
 from feret_diameter import feret_diameters_2d
 plt.rcParams['figure.figsize'] = [10, 7.5] #default plot size
 plt.rcParams['font.size']=16
 plt.rcParams['lines.linewidth'] = 2.0
+plt.rcParams['savefig.facecolor']='white'
 plt.rcParams['animation.ffmpeg_path'] = 'C:\\FFmpeg\\bin\\ffmpeg.exe'  # SPECIFIC TO YOUR MACHINE, for inline animations
 
 #----------------------------------------------------------------------------------
@@ -212,4 +210,4 @@ fibril_mapping(a, b, c)
 #%%---------------------------------------------------------------------------
 #.................................SANDBOX....................................
 #-------------------------------------------------------------------------------
-testing 
+testing

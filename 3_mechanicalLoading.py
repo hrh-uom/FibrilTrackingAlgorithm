@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 plt.rcParams['figure.figsize'] = [10, 7.5];#default plot size
 plt.rcParams['font.size']=16;
 plt.rcParams['lines.linewidth'] = 2.0
+plt.rcParams['savefig.facecolor']='white'
 from sympy.solvers import solve
 import sympy as sp
 #----------------------------------------------------------------------------

@@ -5,6 +5,7 @@ from scipy import stats
 plt.rcParams['figure.figsize'] = [10, 7.5] #default plot size
 plt.rcParams['font.size']=16
 plt.rcParams['lines.linewidth'] = 2.0
+plt.rcParams['savefig.facecolor']='white'
 
 #----------------------------------------------------------------------------
 #.....................................USER INPUT.............................
@@ -186,7 +187,7 @@ for i in range (nfibs):
 lengths_scaled*=nplanes/(fas_len*nexist)
 
 #How long are the long fibrils?
-md.my_histogram((lengths_scaled-1)*100, 'Critical Strain (%)', title='', binwidth=.5)
+md.my_histogram((lengths_scaled-1)*100, 'Critical Strain (%)', title='', binwidth=.5,filename=resultsDir+r'\CS_dist.png')
 np.save(resultsDir+r'\scaledlengths', lengths_scaled)
 
 #%%---------------------------Feret Diameter of each fibril
@@ -202,7 +203,7 @@ def fibril_MFD(i): #maps between props and fibrec
 
 fib_MFDs=np.array([fibril_MFD(i)[0] for i in range(nfibs)])
 np.save(resultsDir+r'\fib_MFDs', fib_MFDs)
-md.my_histogram(fib_MFDs, 'Minimum Feret Diameter (nm)', 'Minimum Feret Diameter distribution')
+md.my_histogram(fib_MFDs, 'Minimum Feret Diameter (nm)', 'Minimum Feret Diameter distribution', filename=resultsDir+r'\MFD_dist.png')
 
 #%% ------------------------Area of each fibrils
 
@@ -230,15 +231,14 @@ plt.show()
 
 #%%----------------------------------------------------------------------------
 #....................TESTING FOR STATISTICAL SIGNIFICANCE ....................
-#-------------------------------------------------------------------------------
-fib_MFDs.shape
-seg_FDs=np.ravel(props[:,:,5]*pxsize)
+#------------------------------------------------------------------------------
 
+seg_FDs=np.ravel(props[:,:,5]*pxsize)
 lower, upper=(80, 300)
 relevantSegFDs=seg_FDs[(seg_FDs>lower) & (seg_FDs<upper)]
 kstest=stats.ks_2samp(fib_MFDs, relevantSegFDs)
 result="reject" if kstest[1]<0.05 else "accept"
 
-md.my_histogram([fib_MFDs, relevantSegFDs], 'Feret Diameter (nm)', title=f'$H_0$, these two samples come from the same distribution \n p={kstest[1]:.2e}: {result}', labels=['mapped fibrils', 'segments in vol'], dens=True, binwidth=50, cols=['red', 'lime'])
+md.my_histogram([fib_MFDs, relevantSegFDs], 'Feret Diameter (nm)', title=f'$H_0$, these two samples come from the same distribution \n p={kstest[1]:.2e}: {result}', labels=['mapped fibrils', 'segments in vol'], dens=True, binwidth=50, cols=['red', 'lime'], filename=resultsDir+r'\statistical_significance_CS_dist.png')
 x=np.linspace(upper, lower, 1000)
 plt.plot(np.linspace(upper, lower, 1000), stats.kde.gaussian_kde(relevantSegFDs)(x))
