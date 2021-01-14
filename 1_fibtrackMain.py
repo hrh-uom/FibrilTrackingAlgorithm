@@ -94,11 +94,10 @@ else: #to save time
     nplanes, npix, _=morphComp.shape
 
 Lscale=np.median(np.ravel(props[:,:,5])) # A typical lengthscale, calculated from the median value of feret diameter, in pixels. To find the equiv in nm, multiply by pxsize
-Ascale=np.median(np.ravel(props[:,:,3]))# A typical area, calculated from the median value of feret diameter, in pixels. To find the equiv in nm, multiply by pxsize
-#---------------------------------------------------------------------------
+#%%---------------------------------------------------------------------------
 #.................................3. FIBRIL MAPPING...........................
 #-------------------------------------------------------------------------------
-#%%------Errors
+#------Errors
 def err_c(pID, i,prev_i, j, dz_b, dz_f):
     """
     centroid error
@@ -112,7 +111,6 @@ def err_c(pID, i,prev_i, j, dz_b, dz_f):
         predictedcent=currentcent+dz_f*(currentcent-prevcent)
         return np.linalg.norm(predictedcent-props[pID+dz_f, j, 0:2])/Lscale
 def err_a(pID, i, j, dz_f): #error in area
- #return np.abs(props[pID+dz_f, j, 3]-props[pID, i, 3])/Ascale
  return np.abs(props[pID+dz_f, j, 3]-props[pID, i, 3])/props[pID, i, 3]
 
 def err_f(pID, i, j, dz_f): #error in feret diameter
@@ -146,7 +144,8 @@ def lastplane_tomap(junk):
      pID-=1
     return pID-increments_back_forward(pID, junk)[0]
 
-def M4_fibril_mapping(a,b,c,skip=1, fib_rec_filename="fib_rec"):
+
+def fibril_mapping(a,b,c,skip=1, fib_rec_filename="fib_rec"):
     global nfibs
     global fib_rec
     global nplanes
@@ -157,7 +156,7 @@ def M4_fibril_mapping(a,b,c,skip=1, fib_rec_filename="fib_rec"):
     fib_rec=np.full((nfibs,nplanes),-1, dtype=int)  #-1 means no fibril here, as indices are >= 0
     fib_rec[:,0]=np.arange(nfibs)  #use like fib_rec[fID, pID]
 
-    for pID in range(lastplane_tomap(junk)): #(p, pp):#
+    for pID in range (lastplane_tomap(junk)):
         if np.any(junk==pID):#If the slice is junk, skip the mapping.
             #x=1
             continue
@@ -250,15 +249,20 @@ def ndropped(a, b, c, pID_list):
         lis.append(nfibs/np.count_nonzero(fib_rec[:,pID+dz_f]<0))
     return lis
 
+#%%---------------------------------------------------------------------------
+#.................................4. MAIN FLOW ...........................
+#-------------------------------------------------------------------------------
 
-#%%
+#CREATING HEATMAP OF ABC VALUES
 dirResults=r'C:\Users\t97721hr\Dropbox (The University of Manchester)\Fibril Tracking Algorithm\abc_january'
 
 start_time =time_s();
 
-a=1;
-b=np.linspace(0,10,20)
-c=np.linspace(0,10,20)
+#chooseABC
+N=21
+a=1;b=np.linspace(0,2,N);c=b.copy()
+np.savetxt(dirResults+"\\values_abc.txt", np.vstack((np.ones(N),b,c)).T) #saves ABC values
+
 # filling the heatmap, value by value
 fun_map = np.empty((b.size, c.size))
 def make_abc_map(fun_map):
@@ -267,12 +271,12 @@ def make_abc_map(fun_map):
         for j in range(c.size):
             random_planes=np.random.choice(np.setdiff1d(np.arange(nplanes-1),junk),5)
             fun_map[i,j] = np.mean(ndropped(a, b[i],c[j], random_planes))
+    np.save(dirResults+"\\heatmap_abc", fun_map)
 
 make_abc_map(fun_map)
-np.save(dirResults+"\\heatmap_abc", fun_map)
-
 
 #%%
+#PLOTTING THE HEATMAP OF ABC VALUES
 
 fun_map=np.load(dirResults+"\\heatmap_abc.npy")
 
@@ -285,9 +289,6 @@ plt.title('1 in how many fibrils dropped. a=1')
 plt.savefig(dirResults+"\\abc.png")
 #print ((time_s()-start_time)/60)
 
-
-
-
 #%%
 #SORTING THE VALUES OF B AND C
 sort_pairs=np.vstack(np.unravel_index((-fun_map).argsort(axis=None, kind='mergesort'), fun_map.shape))
@@ -295,12 +296,11 @@ b_c_values_sorted=np.vstack((b[sort_pairs[0]],c[sort_pairs[1]])).T
 np.save(dirResults+ "\\a1_b_c_values_sorted", b_c_values_sorted)
 
 ##%%
+#RUNNING THE BEST VALUES OF ABC AND EXPORTING
 
 for i in range(5):
     a=1
     b,c=b_c_values_sorted[i]
     abc_string="_rank_%d_a_%.2f_b_%.2f_c_%.2f"%(i, a, b, c)
     M4_fibril_mapping(a, b, c, fib_rec_filename='\\fibrec'+abc_string)
-    #print('completed %d of 10 rounds of b,c '%i+1)
-
-md.beep()
+    print('completed %d of 10 rounds of b,c '%i+1)

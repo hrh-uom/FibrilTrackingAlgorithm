@@ -1,11 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import customFunctions as md
-from random import randint
 import glob
+from scipy import stats
 plt.rcParams['figure.figsize'] = [10, 7.5] #default plot size
 plt.rcParams['font.size']=16
 plt.rcParams['lines.linewidth'] = 2.0
+
 #----------------------------------------------------------------------------
 #.....................................USER INPUT.............................
 #-------------------------------------------------------------------------------
@@ -42,7 +43,8 @@ for i in range(nfibs_0):
     nexist_0[i]=np.max(np.nonzero(fib_rec_0[i]>-1))-np.min(np.nonzero(fib_rec_0[i]>-1))+1
 longfibs=np.where(nexist_0>nplanes*desired_length)[0]  #the indices of the long fibirls
 title_='Number of entries %i, Number above 90pc %i, Percentage %.1f '%(nfibs_0, longfibs.size, 100*longfibs.size/nfibs_0)
-md.my_histogram(100*nexist_0/nplanes,'Number of slices present',title=title_, nbins=20)
+
+md.my_histogram(100*nexist_0/nplanes,'Number of slices present',title=title_, binwidth=5)
 
 #Erasing fibril record for short fibrils. The only way to map between the two is using longfibs. Reindexing also!
 fib_rec=fib_rec_0[longfibs]
@@ -190,54 +192,61 @@ fas_len=coOrds_to_length(np.array(fas_coord_list))
 for i in range (nfibs):
     lengths_scaled[i]=coOrds_to_length(fibCoords(i))
 lengths_scaled*=nplanes/(fas_len*nexist)
-#plotfibril_withLOBF(randint(nfibs))
 
 #How long are the long fibrils?
-md.my_histogram((lengths_scaled-1)*100, 'Critical Strain (%)', title='', nbins=20)
-np.save(resultsDir+r'\rank_' +str(rank)+ '_scaledlengths', lengths_scaled)
+md.my_histogram((lengths_scaled-1)*100, 'Critical Strain (%)', title='', binwidth=.5)
+np.save(resultsDir+r'\scaledlengths', lengths_scaled)
 
-#%%---------------------------Radius of each fibril
+#%%---------------------------Feret Diameter of each fibril
 
-def fibril_fib_FDs(i): #maps between props and fibrec
-    fib_FDs=np.full(nplanes,-1.)  #an array of the centroid co-ordinates for each fibril
+def fibril_MFD(i): #maps between props and fibrec
+    feret_planewise=np.full(nplanes,-1.)  #an array of the centroid co-ordinates for each fibril
     for pID in range(nplanes):
         if fib_rec[i, pID]!=-1:
-            fib_FDs[pID]=(props[pID, fib_rec[i,pID], 5])*pxsize
-    fib_FDs=fib_FDs[fib_FDs>-1.]  #getting rid of junk slices / places where absent
-    mean = np.mean(fib_FDs, axis=0)
-    return mean
-fib_FDs=np.array([fibril_fib_FDs(i) for i in range(nfibs)])
-np.save(resultsDir+r'\rank_' +str(rank)+ '_fib_FDs', fib_FDs)
+            feret_planewise[pID]=(props[pID, fib_rec[i,pID], 5])*pxsize
+    feret_planewise=feret_planewise[feret_planewise>-1.]  #getting rid of junk slices / places where absent
+    mean = np.mean(feret_planewise, axis=0)
+    return mean,feret_planewise
+
+fib_MFDs=np.array([fibril_MFD(i)[0] for i in range(nfibs)])
+np.save(resultsDir+r'\rank_' +str(rank)+ '_fib_MFDs', fib_MFDs)
+md.my_histogram(fib_MFDs, 'Minimum Feret Diameter (nm)', 'Minimum Feret Diameter distribution')
+>>>>>>> master
 
 #%% ------------------------Area of each fibrils
 
-def fibril_area(i): #maps between props and fibrec
-    area=np.full(nplanes,-1.)  #an array of the centroid co-ordinates for each fibril
+def fibril_area(i):
+    """
+    Delivers fibril area in nm^2, for some fibril in the Fibril Record i
+    """
+    area_planewise=np.full(nplanes,-1.)  #an array of the areas for each fibril
     for pID in range(nplanes):
         if fib_rec[i, pID]!=-1:
-            area[pID]=(props[pID, fib_rec[i,pID],3])*(pxsize**2)
-    area=area[area>-1.]  #getting rid of junk slices / places where absent
-    mean = np.mean(area, axis=0)
-    return mean
-area=np.array([fibril_area(i) for i in range(nfibs)])
+            area_planewise[pID]=(props[pID, fib_rec[i,pID],3])*(pxsize**2)
+    area_planewise=area_planewise[area_planewise>-1.]  #getting rid of junk slices / places where absent
+    mean = np.mean(area_planewise)
+    return mean, area_planewise
+
+area=np.array([fibril_area(i)[0] for i in range(nfibs)])
 np.save(resultsDir+r'\rank_' +str(rank)+ '_area.npy', area)
-md.my_histogram(area/10**6, 'Area (um^2)', 'Cross Sectional Area of tracked fibrils')
+md.my_histogram(area/100, 'Area ($10^3$ nm$^2$)', 'Cross Sectional Area of tracked fibrils', binwidth=50)
 #%%----------------Length vs cross secitonal Area
 
 plt.plot(lengths_scaled,area/10**6, '.r')
 plt.xlabel('Normalised lengths')
-plt.ylabel('Cross Sectional Area (um^2)')
+plt.ylabel('Cross Sectional Area (um$^2$)')
 plt.show()
 
 #%%----------------------------------------------------------------------------
 #....................TESTING FOR STATISTICAL SIGNIFICANCE ....................
 #-------------------------------------------------------------------------------
-fib_FDs.shape
+fib_MFDs.shape
 seg_FDs=np.ravel(props[:,:,5]*pxsize)
-from scipy import stats as stats
-x=stats.ks_2samp(fib_FDs, seg_FDs)
+lower, upper=(80, 300)
+relevantSegFDs=seg_FDs[(seg_FDs>lower) & (seg_FDs<upper)]
+kstest=stats.ks_2samp(fib_MFDs, relevantSegFDs)
+result="reject" if kstest[1]<0.05 else "accept"
 
-md.my_histogram([fib_FDs, seg_FDs], 'Feret Diameter (nm)', labels=['mapped fibrils', 'segments in vol'], dens=True, nbins=30, cols=['red', 'lime'], xlims=[0,500])
-
-print(x)
-md.beep()
+md.my_histogram([fib_MFDs, relevantSegFDs], 'Feret Diameter (nm)', title=f'$H_0$, these two samples come from the same distribution \n p={kstest[1]:.2e}: {result}', labels=['mapped fibrils', 'segments in vol'], dens=True, binwidth=50, cols=['red', 'lime'])
+x=np.linspace(upper, lower, 1000)
+plt.plot(np.linspace(upper, lower, 1000), stats.kde.gaussian_kde(relevantSegFDs)(x))
