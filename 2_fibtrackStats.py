@@ -22,9 +22,10 @@ try:
 except:
     print("Error, no fibrec, morphComp, props found")
 
-frs= glob.glob( r'C:\Users\t97721hr\Dropbox (The University of Manchester)\Fibril Tracking Algorithm\abc_experiment_december\fibrec_rank_' + '*.npy')
+frs= glob.glob( r'C:\Users\t97721hr\Dropbox (The University of Manchester)\Fibril Tracking Algorithm\abc_january\fibrec_rank_' + '*.npy')
 
-resultsDir=r'C:\Users\t97721hr\Dropbox (The University of Manchester)\Fibril Tracking Algorithm\abc_experiment_december\results'
+resultsDir=r'C:\Users\t97721hr\Dropbox (The University of Manchester)\Fibril Tracking Algorithm\abc_january\results'
+md.create_Directory(resultsDir)
 
 rank=1
 fib_rec_0=np.load(frs[rank])
@@ -195,7 +196,6 @@ lengths_scaled*=nplanes/(fas_len*nexist)
 
 #How long are the long fibrils?
 md.my_histogram((lengths_scaled-1)*100, 'Critical Strain (%)', title='', binwidth=.5)
-np.save(resultsDir+r'\scaledlengths', lengths_scaled)
 
 #%%---------------------------Feret Diameter of each fibril
 
@@ -211,7 +211,6 @@ def fibril_MFD(i): #maps between props and fibrec
 fib_MFDs=np.array([fibril_MFD(i)[0] for i in range(nfibs)])
 np.save(resultsDir+r'\rank_' +str(rank)+ '_fib_MFDs', fib_MFDs)
 md.my_histogram(fib_MFDs, 'Minimum Feret Diameter (nm)', 'Minimum Feret Diameter distribution')
->>>>>>> master
 
 #%% ------------------------Area of each fibrils
 

@@ -273,7 +273,7 @@ def make_abc_map(fun_map):
             fun_map[i,j] = np.mean(ndropped(a, b[i],c[j], random_planes))
     np.save(dirResults+"\\heatmap_abc", fun_map)
 
-make_abc_map(fun_map)
+#make_abc_map(fun_map)
 
 #%%
 #PLOTTING THE HEATMAP OF ABC VALUES
@@ -302,5 +302,5 @@ for i in range(5):
     a=1
     b,c=b_c_values_sorted[i]
     abc_string="_rank_%d_a_%.2f_b_%.2f_c_%.2f"%(i, a, b, c)
-    M4_fibril_mapping(a, b, c, fib_rec_filename='\\fibrec'+abc_string)
-    print('completed %d of 10 rounds of b,c '%i+1)
+    fibril_mapping(a, b, c, fib_rec_filename='\\fibrec'+abc_string)
+    #print('completed %d of 10 rounds of b,c '%i+1)
