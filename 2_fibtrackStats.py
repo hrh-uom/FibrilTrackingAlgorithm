@@ -12,7 +12,6 @@ plt.rcParams['lines.linewidth'] = 2.0
 whichdata=0
 desired_length=0.9
 resultsDir=md.find_3V_data(whichdata)+'results\\';
-
 #----------------------------------------------------------------------------
 #....................IMPORT DATA FROM FIBRIL MAPPING....................
 #------------------------------------------------------------------------------
@@ -36,7 +35,8 @@ for i in range(nfibs_0):
     nexist_0[i]=np.max(np.nonzero(fib_rec_0[i]>-1))-np.min(np.nonzero(fib_rec_0[i]>-1))+1
 longfibs=np.where(nexist_0>nplanes*desired_length)[0]  #the indices of the long fibirls
 title_='Number of entries %i, Number above 90pc %i, Percentage %.1f '%(nfibs_0, longfibs.size, 100*longfibs.size/nfibs_0)
-md.my_histogram(100*nexist_0/nplanes,'Number of slices present',title=title_, nbins=20)
+
+md.my_histogram(100*nexist_0/nplanes,'Number of slices present',title=title_, binwidth=5)
 
 #Erasing fibril record for short fibrils. The only way to map between the two is using longfibs. Reindexing also!
 fib_rec=fib_rec_0[longfibs]
@@ -48,6 +48,7 @@ direction_unit_vectors=np.zeros((nfibs, 3))
 #Q: how many fibs are we capturing in cross-section?
 meanperplane=np.mean(np.apply_along_axis(np.max, 1, np.reshape(morphComp, (nplanes,npix**2 ))))
 print('fraction captured in cross section', nfibs/meanperplane)
+
 
 #%%----------------------------------------------------------------------------
 #....................DROPPED FIBRIL INQUIRIES....................
@@ -185,7 +186,7 @@ for i in range (nfibs):
 lengths_scaled*=nplanes/(fas_len*nexist)
 
 #How long are the long fibrils?
-md.my_histogram((lengths_scaled-1)*100, 'Critical Strain (%)', title='', nbins=20)
+md.my_histogram((lengths_scaled-1)*100, 'Critical Strain (%)', title='', binwidth=.5)
 np.save(resultsDir+r'\scaledlengths', lengths_scaled)
 
 #%%---------------------------Feret Diameter of each fibril
@@ -198,6 +199,7 @@ def fibril_MFD(i): #maps between props and fibrec
     feret_planewise=feret_planewise[feret_planewise>-1.]  #getting rid of junk slices / places where absent
     mean = np.mean(feret_planewise, axis=0)
     return mean,feret_planewise
+
 
 x=np.full(nfibs-1, -1.)
 y=x.copy()
@@ -213,10 +215,10 @@ plt.title("Is there a relationship between fibril MFD and \nabsolute difference 
 plt.xlabel("Fibril MFD (averaged over all planes) (nm)")
 plt.ylabel("Mean change in MFD between consecutive \nsegments in a fibril (nm)")
 plt.show()
-#%%
-fib_FDs=np.array([fibril_MFD(i)[0] for i in range(nfibs)])
-np.save(resultsDir+r'\fib_FDs', fib_FDs)
-md.my_histogram(fib_FDs, 'Minimum Feret Diameter (nm)', 'Feret Diameter distribution')
+
+fib_MFDs=np.array([fibril_MFD(i)[0] for i in range(nfibs)])
+np.save(resultsDir+r'\fib_MFDs', fib_MFDs)
+md.my_histogram(fib_MFDs, 'Minimum Feret Diameter (nm)', 'Minimum Feret Diameter distribution')
 
 #%% ------------------------Area of each fibrils
 
@@ -231,6 +233,7 @@ def fibril_area(i):
     area_planewise=area_planewise[area_planewise>-1.]  #getting rid of junk slices / places where absent
     mean = np.mean(area_planewise)
     return mean, area_planewise
+
 
 x=np.full(nfibs-1, -1.)
 y=x.copy()
@@ -261,7 +264,7 @@ plt.show()
 #%% tEMP BREAK REMOVE THIS
 area=np.array([fibril_area(i)[0] for i in range(nfibs)])
 np.save(resultsDir+r'\area.npy', area)
-md.my_histogram(area/100, 'Area ($10^3$ nm$^2$)', 'Cross Sectional Area of tracked fibrils')
+md.my_histogram(area/100, 'Area ($10^3$ nm$^2$)', 'Cross Sectional Area of tracked fibrils', binwidth=50)
 #%%----------------Length vs cross secitonal Area
 
 plt.plot(lengths_scaled,area/10**6, '.r')
@@ -272,19 +275,14 @@ plt.show()
 #%%----------------------------------------------------------------------------
 #....................TESTING FOR STATISTICAL SIGNIFICANCE ....................
 #-------------------------------------------------------------------------------
-fib_FDs.shape
+fib_MFDs.shape
 seg_FDs=np.ravel(props[:,:,5]*pxsize)
-x=stats.ks_2samp(fib_FDs, seg_FDs)
-x
 
-np.mean(fib_FDs)
-np.mean(seg_FDs)
+lower, upper=(80, 300)
+relevantSegFDs=seg_FDs[(seg_FDs>lower) & (seg_FDs<upper)]
+kstest=stats.ks_2samp(fib_MFDs, relevantSegFDs)
+result="reject" if kstest[1]<0.05 else "accept"
 
-
-import importlib
-importlib.reload(md);
-
-np.max(fib_FDs)
-np.max(seg_FDs)
-
-md.my_histogram([fib_FDs, seg_FDs], 'Feret Diameter (nm)', labels=['mapped fibrils', 'segments in vol'], dens=True, nbins=20, cols=['red', 'lime'], xlims=[0,500])
+md.my_histogram([fib_MFDs, relevantSegFDs], 'Feret Diameter (nm)', title=f'$H_0$, these two samples come from the same distribution \n p={kstest[1]:.2e}: {result}', labels=['mapped fibrils', 'segments in vol'], dens=True, binwidth=50, cols=['red', 'lime'])
+x=np.linspace(upper, lower, 1000)
+plt.plot(np.linspace(upper, lower, 1000), stats.kde.gaussian_kde(relevantSegFDs)(x))
