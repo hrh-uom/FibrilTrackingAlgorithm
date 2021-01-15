@@ -12,11 +12,11 @@ from skimage.color import label2rgb
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 plt.rcParams['figure.figsize'] = [10, 7.5];#default plot size
+plt.rcParams['savefig.facecolor']='white'
 plt.rcParams['animation.ffmpeg_path'] = 'C:\\FFmpeg\\bin\\ffmpeg.exe'; # SPECIFIC TO YOUR MACHINE, for inline animations
 import winsound #for development
 from  datetime import datetime as dt
 import os
-
 
 #----------------DIRECTORIES AND PATHS-------------------
 def create_Directory(directory):
@@ -132,7 +132,7 @@ def red_objects_1_plane(obj_group, pID):
  plt.imshow(rgblabel)
 
 #---------------PLOTS-------------------
-def my_histogram(arr,xlabel, dens=False, title=' ', labels=[], cols='g', binwidth=10, density=False, xlims=0):
+def my_histogram(arr,xlabel, dens=False, title=' ', labels=[], cols='g', binwidth=10, xlims=0, filename=0):
     """
     A histogram, with number on the y axis
     """
@@ -150,7 +150,10 @@ def my_histogram(arr,xlabel, dens=False, title=' ', labels=[], cols='g', binwidt
     plt.title(title)
     plt.grid(True)
     plt.legend()
+    if filename!=0:
+        plt.savefig(filename)
     plt.show()
+
 
 #------------------------------STATS---------------------
 
