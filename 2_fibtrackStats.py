@@ -27,7 +27,7 @@ frs= glob.glob( r'C:\Users\t97721hr\Dropbox (The University of Manchester)\Fibri
 resultsDir=r'C:\Users\t97721hr\Dropbox (The University of Manchester)\Fibril Tracking Algorithm\abc_january\results'
 md.create_Directory(resultsDir)
 
-rank=1
+rank=0
 fib_rec_0=np.load(frs[rank])
 
 nfibs_0,nplanes=fib_rec_0.shape
@@ -124,7 +124,7 @@ plot_fib_tops_bottoms()
 #..............................ANIMATIONS, OPTIONAL....................
 #-------------------------------------------------------------------------------
 # DROPPED
-#md.export_animation(resultsDir,r'\rank_' +rank+ '_dropped_fibril_inquiry_50to90", morphComp,half_length_fibril_indices,fib_rec_0, dt=1000)
+#md.export_animation(resultsDir,r'\rank_' +str(rank)+ '_dropped_fibril_inquiry_50to90', morphComp,half_length_fibril_indices,fib_rec_0, dt=1000)
 
 #%% ALL
 #md.animation_inline(morphComp,np.arange(nfibs), fib_rec,0,2)
