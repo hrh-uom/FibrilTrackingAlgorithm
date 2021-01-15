@@ -6,6 +6,7 @@ from scipy import stats
 plt.rcParams['figure.figsize'] = [10, 7.5] #default plot size
 plt.rcParams['font.size']=16
 plt.rcParams['lines.linewidth'] = 2.0
+plt.rcParams['savefig.facecolor']='white'
 
 #----------------------------------------------------------------------------
 #.....................................USER INPUT.............................
@@ -120,6 +121,23 @@ def plot_fib_tops_bottoms():
     plt.legend()
     plt.show()
 plot_fib_tops_bottoms()
+#%% is there a correlation between size and nplanes in which the strand exists
+def plot_strand_size_vs_MFD():
+    fib_MFDs_0=np.array([fibril_MFD(i, fib_rec_0)[0] for i in range(nfibs_0)])
+    plt.scatter(fib_MFDs_0,nexist_0, s=8)
+    plt.title("Is there a correlation between strand MFD and length of strand")
+    plt.ylim(0,102)
+    plt.xlim(lower,upper)
+    plt.xlabel("Strand MFD (nm)")
+    plt.yticks(np.arange(0,nplanes, 10))
+    plt.xticks(np.arange(lower,upper, 20))
+    plt.tick_params(axis="x", bottom=True, top=True, labelbottom=True, labeltop=True)
+    plt.tick_params(axis="x", bottom=True, top=True, labelbottom=True, labeltop=True)
+    plt.ylabel("Number of planes in which strand exists")
+    plt.show()
+plot_strand_size_vs_MFD()
+
+
 #%%---------------------------------------------------------------------------
 #..............................ANIMATIONS, OPTIONAL....................
 #-------------------------------------------------------------------------------
@@ -169,7 +187,6 @@ def plotfibril_withLOBF(i):
     ax.set_xlabel('x', fontsize=20)
     ax.set_ylabel('y',fontsize=20,)
     ax.set_zlabel('z', fontsize=20 )
-    ax.set_zlabel('z', fontsize=20 )
     ax.view_init(elev=50, azim=160)
     plt.show()
 def coOrds_to_length(co_ords):
@@ -195,22 +212,23 @@ for i in range (nfibs):
 lengths_scaled*=nplanes/(fas_len*nexist)
 
 #How long are the long fibrils?
-md.my_histogram((lengths_scaled-1)*100, 'Critical Strain (%)', title='', binwidth=.5)
+md.my_histogram((lengths_scaled-1)*100, 'Critical Strain (%)', title='', binwidth=.5,filename=resultsDir+r'\rank_' +str(rank)r'\CS_dist.png')
+np.save(resultsDir+r'\scaledlengths', lengths_scaled)
 
 #%%---------------------------Feret Diameter of each fibril
 
-def fibril_MFD(i): #maps between props and fibrec
+def fibril_MFD(i, FR): #maps between props and fibrec
     feret_planewise=np.full(nplanes,-1.)  #an array of the centroid co-ordinates for each fibril
     for pID in range(nplanes):
-        if fib_rec[i, pID]!=-1:
-            feret_planewise[pID]=(props[pID, fib_rec[i,pID], 5])*pxsize
+        if FR[i, pID]!=-1:
+            feret_planewise[pID]=(props[pID, FR[i,pID], 5])*pxsize
     feret_planewise=feret_planewise[feret_planewise>-1.]  #getting rid of junk slices / places where absent
     mean = np.mean(feret_planewise, axis=0)
     return mean,feret_planewise
 
-fib_MFDs=np.array([fibril_MFD(i)[0] for i in range(nfibs)])
+fib_MFDs=np.array([fibril_MFD(i, fib_rec)[0] for i in range(nfibs)])
 np.save(resultsDir+r'\rank_' +str(rank)+ '_fib_MFDs', fib_MFDs)
-md.my_histogram(fib_MFDs, 'Minimum Feret Diameter (nm)', 'Minimum Feret Diameter distribution')
+md.my_histogram(fib_MFDs, 'Minimum Feret Diameter (nm)', 'Minimum Feret Diameter distribution', filename=resultsDir+r'\rank_' +str(rank)+r'\MFD_dist.png')
 
 #%% ------------------------Area of each fibrils
 
@@ -225,10 +243,9 @@ def fibril_area(i):
     area_planewise=area_planewise[area_planewise>-1.]  #getting rid of junk slices / places where absent
     mean = np.mean(area_planewise)
     return mean, area_planewise
-
-area=np.array([fibril_area(i)[0] for i in range(nfibs)])
-np.save(resultsDir+r'\rank_' +str(rank)+ '_area.npy', area)
-md.my_histogram(area/100, 'Area ($10^3$ nm$^2$)', 'Cross Sectional Area of tracked fibrils', binwidth=50)
+fibrilArea=np.array([fibril_area(i)[0] for i in range(nfibs)])
+np.save(resultsDir+r'\rank_' +str(rank) +r'\area.npy', fibrilArea)
+md.my_histogram(fibrilArea/100, 'Area ($10^3$ nm$^2$)', 'Cross Sectional Area of tracked fibrils', binwidth=50)
 #%%----------------Length vs cross secitonal Area
 
 plt.plot(lengths_scaled,area/10**6, '.r')
@@ -238,14 +255,14 @@ plt.show()
 
 #%%----------------------------------------------------------------------------
 #....................TESTING FOR STATISTICAL SIGNIFICANCE ....................
-#-------------------------------------------------------------------------------
-fib_MFDs.shape
-seg_FDs=np.ravel(props[:,:,5]*pxsize)
+#------------------------------------------------------------------------------
+
+seg_MFDs=np.ravel(props[:,:,5]*pxsize) #MFDs of all the segments in the volume
 lower, upper=(80, 300)
-relevantSegFDs=seg_FDs[(seg_FDs>lower) & (seg_FDs<upper)]
-kstest=stats.ks_2samp(fib_MFDs, relevantSegFDs)
+relevantSegMFDs=seg_MFDs[(seg_MFDs>lower) & (seg_MFDs<upper)]
+kstest=stats.ks_2samp(fib_MFDs, relevantSegMFDs)
 result="reject" if kstest[1]<0.05 else "accept"
 
-md.my_histogram([fib_MFDs, relevantSegFDs], 'Feret Diameter (nm)', title=f'$H_0$, these two samples come from the same distribution \n p={kstest[1]:.2e}: {result}', labels=['mapped fibrils', 'segments in vol'], dens=True, binwidth=50, cols=['red', 'lime'])
+md.my_histogram([fib_MFDs, relevantSegMFDs], 'Feret Diameter (nm)', title=f'$H_0$, these two samples come from the same distribution \n p={kstest[1]:.2e}: {result}', labels=['Fibrils', 'Segments'], dens=True, binwidth=20, cols=['red', 'lime'], filename=resultsDir+r'\statistical_significance_CS_dist.png')
 x=np.linspace(upper, lower, 1000)
-plt.plot(np.linspace(upper, lower, 1000), stats.kde.gaussian_kde(relevantSegFDs)(x))
+#plt.plot(np.linspace(upper, lower, 1000), stats.kde.gaussian_kde(relevantSegMFDs)(x))
