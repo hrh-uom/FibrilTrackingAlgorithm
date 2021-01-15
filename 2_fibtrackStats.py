@@ -28,7 +28,7 @@ frs= glob.glob( r'C:\Users\t97721hr\Dropbox (The University of Manchester)\Fibri
 resultsDir=r'C:\Users\t97721hr\Dropbox (The University of Manchester)\Fibril Tracking Algorithm\abc_january\results'
 md.create_Directory(resultsDir)
 
-rank=0
+rank=1
 fib_rec_0=np.load(frs[rank])
 
 nfibs_0,nplanes=fib_rec_0.shape
@@ -142,11 +142,11 @@ plot_strand_size_vs_MFD()
 #..............................ANIMATIONS, OPTIONAL....................
 #-------------------------------------------------------------------------------
 # DROPPED
-#md.export_animation(resultsDir,r'\rank_' +str(rank)+ '_dropped_fibril_inquiry_50to90', morphComp,half_length_fibril_indices,fib_rec_0, dt=1000)
+md.export_animation(resultsDir,r'\rank_' +str(rank)+ '_dropped_fibril_inquiry_50to90', morphComp,half_length_fibril_indices,fib_rec_0, dt=1000)
 
 #%% ALL
 #md.animation_inline(morphComp,np.arange(nfibs), fib_rec,0,2)
-#md.export_animation(resultsDir,r'\rank_' +str(rank)+ '_90pc_plus_animation', morphComp,np.arange(nfibs),fib_rec, dt=1000)
+md.export_animation(resultsDir,r'\rank_' +str(rank)+ '_90pc_plus_animation', morphComp,np.arange(nfibs),fib_rec, dt=1000)
 
 #%%----------------------------------------------------------------------------
 #....................GEOMETRY OF FIBRIL POPULATION....................
@@ -212,7 +212,7 @@ for i in range (nfibs):
 lengths_scaled*=nplanes/(fas_len*nexist)
 
 #How long are the long fibrils?
-md.my_histogram((lengths_scaled-1)*100, 'Critical Strain (%)', title='', binwidth=.5,filename=resultsDir+r'\rank_' +str(rank)r'\CS_dist.png')
+md.my_histogram((lengths_scaled-1)*100, 'Critical Strain (%)', title='', binwidth=.5,filename=resultsDir+r'\rank_' +str(rank)+'_CS_dist.png')
 np.save(resultsDir+r'\scaledlengths', lengths_scaled)
 
 #%%---------------------------Feret Diameter of each fibril
@@ -228,7 +228,7 @@ def fibril_MFD(i, FR): #maps between props and fibrec
 
 fib_MFDs=np.array([fibril_MFD(i, fib_rec)[0] for i in range(nfibs)])
 np.save(resultsDir+r'\rank_' +str(rank)+ '_fib_MFDs', fib_MFDs)
-md.my_histogram(fib_MFDs, 'Minimum Feret Diameter (nm)', 'Minimum Feret Diameter distribution', filename=resultsDir+r'\rank_' +str(rank)+r'\MFD_dist.png')
+md.my_histogram(fib_MFDs, 'Minimum Feret Diameter (nm)', 'Minimum Feret Diameter distribution', filename=resultsDir+r'\rank_' +str(rank)+'_MFD_dist.png')
 
 #%% ------------------------Area of each fibrils
 
@@ -244,11 +244,11 @@ def fibril_area(i):
     mean = np.mean(area_planewise)
     return mean, area_planewise
 fibrilArea=np.array([fibril_area(i)[0] for i in range(nfibs)])
-np.save(resultsDir+r'\rank_' +str(rank) +r'\area.npy', fibrilArea)
+np.save(resultsDir+r'\rank_' +str(rank) +'_area.npy', fibrilArea)
 md.my_histogram(fibrilArea/100, 'Area ($10^3$ nm$^2$)', 'Cross Sectional Area of tracked fibrils', binwidth=50)
 #%%----------------Length vs cross secitonal Area
 
-plt.plot(lengths_scaled,area/10**6, '.r')
+plt.plot(lengths_scaled,fibrilArea/10**6, '.r')
 plt.xlabel('Normalised lengths')
 plt.ylabel('Cross Sectional Area (um$^2$)')
 plt.show()
@@ -263,6 +263,6 @@ relevantSegMFDs=seg_MFDs[(seg_MFDs>lower) & (seg_MFDs<upper)]
 kstest=stats.ks_2samp(fib_MFDs, relevantSegMFDs)
 result="reject" if kstest[1]<0.05 else "accept"
 
-md.my_histogram([fib_MFDs, relevantSegMFDs], 'Feret Diameter (nm)', title=f'$H_0$, these two samples come from the same distribution \n p={kstest[1]:.2e}: {result}', labels=['Fibrils', 'Segments'], dens=True, binwidth=20, cols=['red', 'lime'], filename=resultsDir+r'\statistical_significance_CS_dist.png')
+md.my_histogram([fib_MFDs, relevantSegMFDs], 'Feret Diameter (nm)', title=f'$H_0$, these two samples come from the same distribution \n p={kstest[1]:.2e}: {result}', labels=['Fibrils', 'Segments'], dens=True, binwidth=20, cols=['red', 'lime'], filename=resultsDir+r'\rank_' +str(rank)+'_statistical_significance_CS_dist.png')
 x=np.linspace(upper, lower, 1000)
 #plt.plot(np.linspace(upper, lower, 1000), stats.kde.gaussian_kde(relevantSegMFDs)(x))
