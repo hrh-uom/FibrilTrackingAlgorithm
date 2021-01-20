@@ -254,13 +254,11 @@ def ndropped(a, b, c, pID_list):
 #-------------------------------------------------------------------------------
 
 #CREATING HEATMAP OF ABC VALUES
-dirResults=r'C:\Users\t97721hr\Dropbox (The University of Manchester)\Fibril Tracking Algorithm\abc_january'
-
-start_time =time_s();
+dirResults=r'C:\Users\t97721hr\Dropbox (The University of Manchester)\Fibril Tracking Algorithm\abc_jan_bc_1.5_2.5'
 
 #chooseABC
-N=21
-a=1;b=np.linspace(0,2,N);c=b.copy()
+N=11
+a=1;b=np.linspace(1.5,2.5,N);c=b.copy()
 np.savetxt(dirResults+"\\values_abc.txt", np.vstack((np.ones(N),b,c)).T) #saves ABC values
 
 # filling the heatmap, value by value
@@ -273,7 +271,7 @@ def make_abc_map(fun_map):
             fun_map[i,j] = np.mean(ndropped(a, b[i],c[j], random_planes))
     np.save(dirResults+"\\heatmap_abc", fun_map)
 
-#make_abc_map(fun_map)
+make_abc_map(fun_map)
 
 #%%
 #PLOTTING THE HEATMAP OF ABC VALUES
@@ -293,7 +291,7 @@ plt.savefig(dirResults+"\\abc.png")
 #SORTING THE VALUES OF B AND C
 sort_pairs=np.vstack(np.unravel_index((-fun_map).argsort(axis=None, kind='mergesort'), fun_map.shape))
 b_c_values_sorted=np.vstack((b[sort_pairs[0]],c[sort_pairs[1]])).T
-np.save(dirResults+ "\\a1_b_c_values_sorted", b_c_values_sorted)
+np.savetxt(dirResults+ "\\a1_b_c_values_sorted.txt", b_c_values_sorted)
 
 ##%%
 #RUNNING THE BEST VALUES OF ABC AND EXPORTING

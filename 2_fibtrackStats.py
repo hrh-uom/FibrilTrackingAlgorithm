@@ -23,12 +23,13 @@ try:
 except:
     print("Error, no fibrec, morphComp, props found")
 
-frs= glob.glob( r'C:\Users\t97721hr\Dropbox (The University of Manchester)\Fibril Tracking Algorithm\abc_january\fibrec_rank_' + '*.npy')
+parentDir=r'C:\Users\t97721hr\Dropbox (The University of Manchester)\Fibril Tracking Algorithm\abc_january_BC_0_2'
+frs= glob.glob( parentDir+r'\fibrec_rank_' + '*.npy')
+resultsDir=parentDir+r'\results'
 
-resultsDir=r'C:\Users\t97721hr\Dropbox (The University of Manchester)\Fibril Tracking Algorithm\abc_january\results'
 md.create_Directory(resultsDir)
 
-rank=1
+rank=4
 fib_rec_0=np.load(frs[rank])
 
 nfibs_0,nplanes=fib_rec_0.shape
@@ -58,6 +59,136 @@ direction_unit_vectors=np.zeros((nfibs, 3))
 #Q: how many fibs are we capturing in cross-section?
 meanperplane=np.mean(np.apply_along_axis(np.max, 1, np.reshape(morphComp, (nplanes,npix**2 ))))
 print('fraction captured in cross section', nfibs/meanperplane)
+
+
+#%%---------------------------------------------------------------------------
+#..............................ANIMATIONS, OPTIONAL....................
+#-------------------------------------------------------------------------------
+# DROPPED
+md.export_animation(resultsDir,r'\rank_' +str(rank)+ '_dropped_fibril_inquiry_50to90', morphComp,half_length_fibril_indices,fib_rec_0, dt=1000)
+
+#%% ALL
+#md.animation_inline(morphComp,np.arange(nfibs), fib_rec,0,2)
+md.export_animation(resultsDir,r'\rank_' +str(rank)+ '_90pc_plus_animation', morphComp,np.arange(nfibs),fib_rec, dt=1000)
+
+#%%----------------------------------------------------------------------------
+#....................GEOMETRY OF FIBRIL POPULATION....................
+#-------------------------------------------------------------------------------
+def fascicleCoord(pID):
+    """
+    Calculates the mean co-ordinate of all fibrils at slice pID
+    """
+    objects_in_plane=fib_rec[:, pID][ fib_rec[:, pID]>-1]
+    if objects_in_plane.size!=0: #ignoring junk slices
+        coOrds_2D=[]
+        for i in objects_in_plane:
+            coOrds_2D.append((props[pID, i, 0:2]))
+
+        return np.append(pxsize*np.mean(np.array(coOrds_2D), axis=0), dz*pID)
+def fibCoords(i):
+    """
+    calculates the coordinates in 3d real space of a fibril (i).
+    """
+    co_ords=np.full((nplanes, 3),-1.)  #an array of the centroid co-ordinates for each fibril
+    for pID in range(nplanes):
+        if fib_rec[i, pID]!=-1:
+            co_ords[pID, 0:2]=(props[pID, fib_rec[i,pID], 0:2])*pxsize
+            co_ords[pID, 2]=pID*dz
+    co_ords=co_ords[co_ords[:,2]>-1.]  #getting rid of junk slices / places where absent
+    #This stuff is to draw a line of best fit! Leaving it out
+    #mean = np.mean(co_ords, axis=0)
+    #uu, dd, vv=np.linalg.svd(co_ords-mean)
+    #direction=vv[0]
+    return co_ords #, mean, direction
+def plotfibril_withLOBF(i):
+    co_ords, mean, direction=calculaterr_coordinates(i)
+    linepts =0.5*np.linalg.norm(co_ords[0]-co_ords[-1])* direction *np.mgrid[-1:1:2j][:, np.newaxis]
+    linepts += mean # shift by the mean to get the line in the right place
+    ax = m3d.Axes3D(plt.figure())
+    ax.scatter3D(*co_ords.T)
+    ax.plot3D(*linepts.T)
+    ax.set_xlabel('x', fontsize=20)
+    ax.set_ylabel('y',fontsize=20,)
+    ax.set_zlabel('z', fontsize=20 )
+    ax.view_init(elev=50, azim=160)
+    plt.show()
+def coOrds_to_length(co_ords):
+    """
+    input an Nx3 numpy array representing a list of 3D coordinates, and it will calculate the length of the 'worm like' length joining all the co-ordinates in 3d
+    """
+    L=0
+    for j in range((co_ords.shape[0])-1): #j steps through planes in co-ords
+        dr=co_ords[j]-co_ords[j+1]
+        L+=np.linalg.norm(dr)
+    return L
+
+#Calculate fascicle length
+fas_coord_list=[]
+for pID in range (nplanes-1):
+    if np.all(fascicleCoord(pID))!=None:
+        fas_coord_list.append(fascicleCoord(pID))
+fas_len=coOrds_to_length(np.array(fas_coord_list))
+
+#Calculate length of each fibril
+for i in range (nfibs):
+    lengths_scaled[i]=coOrds_to_length(fibCoords(i))
+lengths_scaled*=nplanes/(fas_len*nexist)
+
+#How long are the long fibrils?
+md.my_histogram((lengths_scaled-1)*100, 'Critical Strain (%)', title='', binwidth=.5,filename=resultsDir+r'\rank_' +str(rank)+'_CS_dist.png')
+np.save(resultsDir+r'\rank_' +str(rank)+r'\scaledlengths', lengths_scaled)
+
+#%%---------------------------Feret Diameter of each fibril
+
+def fibril_MFD(i, FR): #maps between props and fibrec
+    feret_planewise=np.full(nplanes,-1.)  #an array of the centroid co-ordinates for each fibril
+    for pID in range(nplanes):
+        if FR[i, pID]!=-1:
+            feret_planewise[pID]=(props[pID, FR[i,pID], 5])*pxsize
+    feret_planewise=feret_planewise[feret_planewise>-1.]  #getting rid of junk slices / places where absent
+    mean = np.mean(feret_planewise, axis=0)
+    return mean,feret_planewise
+
+fib_MFDs=np.array([fibril_MFD(i, fib_rec)[0] for i in range(nfibs)])
+np.save(resultsDir+r'\rank_' +str(rank)+ '_fib_MFDs', fib_MFDs)
+md.my_histogram(fib_MFDs, 'Minimum Feret Diameter (nm)', 'Minimum Feret Diameter distribution', filename=resultsDir+r'\rank_' +str(rank)+'_MFD_dist.png')
+
+#%% ------------------------Area of each fibrils
+def fibril_area(i):
+    """
+    Delivers fibril area in nm^2, for some fibril in the Fibril Record i
+    """
+    area_planewise=np.full(nplanes,-1.)  #an array of the areas for each fibril
+    for pID in range(nplanes):
+        if fib_rec[i, pID]!=-1:
+            area_planewise[pID]=(props[pID, fib_rec[i,pID],3])*(pxsize**2)
+    area_planewise=area_planewise[area_planewise>-1.]  #getting rid of junk slices / places where absent
+    mean = np.mean(area_planewise)
+    return mean, area_planewise
+fibrilArea=np.array([fibril_area(i)[0] for i in range(nfibs)])
+np.save(resultsDir+r'\rank_' +str(rank) +'_area.npy', fibrilArea)
+md.my_histogram(fibrilArea/100, 'Area ($10^3$ nm$^2$)', 'Cross Sectional Area of tracked fibrils', binwidth=50)
+#%%----------------Length vs cross secitonal Area
+
+plt.plot(lengths_scaled,fibrilArea/10**6, '.r')
+plt.xlabel('Normalised lengths')
+plt.ylabel('Cross Sectional Area (um$^2$)')
+plt.show()
+
+#%%----------------------------------------------------------------------------
+#....................TESTING FOR STATISTICAL SIGNIFICANCE ....................
+#------------------------------------------------------------------------------
+
+seg_MFDs=np.ravel(props[:,:,5]*pxsize) #MFDs of all the segments in the volume
+lower, upper=(80, 300)
+relevantSegMFDs=seg_MFDs[(seg_MFDs>lower) & (seg_MFDs<upper)]
+kstest=stats.ks_2samp(fib_MFDs, relevantSegMFDs)
+result="reject" if kstest[1]<0.05 else "accept"
+
+md.my_histogram([fib_MFDs, relevantSegMFDs], 'Feret Diameter (nm)', title=f'$H_0$, these two samples come from the same distribution \n p={kstest[1]:.2e}: {result}', labels=['Fibrils', 'Segments'], dens=True, binwidth=20, cols=['red', 'lime'], filename=resultsDir+r'\rank_' +str(rank)+'_statistical_significance_CS_dist.png')
+x=np.linspace(upper, lower, 1000)
+#plt.plot(np.linspace(upper, lower, 1000), stats.kde.gaussian_kde(relevantSegMFDs)(x))
+
 
 #%%----------------------------------------------------------------------------
 #....................DROPPED FIBRIL INQUIRIES....................
@@ -136,133 +267,3 @@ def plot_strand_size_vs_MFD():
     plt.ylabel("Number of planes in which strand exists")
     plt.show()
 plot_strand_size_vs_MFD()
-
-
-#%%---------------------------------------------------------------------------
-#..............................ANIMATIONS, OPTIONAL....................
-#-------------------------------------------------------------------------------
-# DROPPED
-md.export_animation(resultsDir,r'\rank_' +str(rank)+ '_dropped_fibril_inquiry_50to90', morphComp,half_length_fibril_indices,fib_rec_0, dt=1000)
-
-#%% ALL
-#md.animation_inline(morphComp,np.arange(nfibs), fib_rec,0,2)
-md.export_animation(resultsDir,r'\rank_' +str(rank)+ '_90pc_plus_animation', morphComp,np.arange(nfibs),fib_rec, dt=1000)
-
-#%%----------------------------------------------------------------------------
-#....................GEOMETRY OF FIBRIL POPULATION....................
-#-------------------------------------------------------------------------------
-def fascicleCoord(pID):
-    """
-    Calculates the mean co-ordinate of all fibrils at slice pID
-    """
-    objects_in_plane=fib_rec[:, pID][ fib_rec[:, pID]>-1]
-    if objects_in_plane.size!=0: #ignoring junk slices
-        coOrds_2D=[]
-        for i in objects_in_plane:
-            coOrds_2D.append((props[pID, i, 0:2]))
-
-        return np.append(pxsize*np.mean(np.array(coOrds_2D), axis=0), dz*pID)
-def fibCoords(i):
-    """
-    calculates the coordinates in 3d real space of a fibril (i).
-    """
-    co_ords=np.full((nplanes, 3),-1.)  #an array of the centroid co-ordinates for each fibril
-    for pID in range(nplanes):
-        if fib_rec[i, pID]!=-1:
-            co_ords[pID, 0:2]=(props[pID, fib_rec[i,pID], 0:2])*pxsize
-            co_ords[pID, 2]=pID*dz
-    co_ords=co_ords[co_ords[:,2]>-1.]  #getting rid of junk slices / places where absent
-    #This stuff is to draw a line of best fit! Leaving it out
-    #mean = np.mean(co_ords, axis=0)
-    #uu, dd, vv=np.linalg.svd(co_ords-mean)
-    #direction=vv[0]
-    return co_ords #, mean, direction
-def plotfibril_withLOBF(i):
-    co_ords, mean, direction=calculaterr_coordinates(i)
-    linepts =0.5*np.linalg.norm(co_ords[0]-co_ords[-1])* direction *np.mgrid[-1:1:2j][:, np.newaxis]
-    linepts += mean # shift by the mean to get the line in the right place
-    ax = m3d.Axes3D(plt.figure())
-    ax.scatter3D(*co_ords.T)
-    ax.plot3D(*linepts.T)
-    ax.set_xlabel('x', fontsize=20)
-    ax.set_ylabel('y',fontsize=20,)
-    ax.set_zlabel('z', fontsize=20 )
-    ax.view_init(elev=50, azim=160)
-    plt.show()
-def coOrds_to_length(co_ords):
-    """
-    input an Nx3 numpy array representing a list of 3D coordinates, and it will calculate the length of the 'worm like' length joining all the co-ordinates in 3d
-    """
-    L=0
-    for j in range((co_ords.shape[0])-1): #j steps through planes in co-ords
-        dr=co_ords[j]-co_ords[j+1]
-        L+=np.linalg.norm(dr)
-    return L
-
-#Calculate fascicle length
-fas_coord_list=[]
-for pID in range (nplanes-1):
-    if np.all(fascicleCoord(pID))!=None:
-        fas_coord_list.append(fascicleCoord(pID))
-fas_len=coOrds_to_length(np.array(fas_coord_list))
-
-#Calculate length of each fibril
-for i in range (nfibs):
-    lengths_scaled[i]=coOrds_to_length(fibCoords(i))
-lengths_scaled*=nplanes/(fas_len*nexist)
-
-#How long are the long fibrils?
-md.my_histogram((lengths_scaled-1)*100, 'Critical Strain (%)', title='', binwidth=.5,filename=resultsDir+r'\rank_' +str(rank)+'_CS_dist.png')
-np.save(resultsDir+r'\scaledlengths', lengths_scaled)
-
-#%%---------------------------Feret Diameter of each fibril
-
-def fibril_MFD(i, FR): #maps between props and fibrec
-    feret_planewise=np.full(nplanes,-1.)  #an array of the centroid co-ordinates for each fibril
-    for pID in range(nplanes):
-        if FR[i, pID]!=-1:
-            feret_planewise[pID]=(props[pID, FR[i,pID], 5])*pxsize
-    feret_planewise=feret_planewise[feret_planewise>-1.]  #getting rid of junk slices / places where absent
-    mean = np.mean(feret_planewise, axis=0)
-    return mean,feret_planewise
-
-fib_MFDs=np.array([fibril_MFD(i, fib_rec)[0] for i in range(nfibs)])
-np.save(resultsDir+r'\rank_' +str(rank)+ '_fib_MFDs', fib_MFDs)
-md.my_histogram(fib_MFDs, 'Minimum Feret Diameter (nm)', 'Minimum Feret Diameter distribution', filename=resultsDir+r'\rank_' +str(rank)+'_MFD_dist.png')
-
-#%% ------------------------Area of each fibrils
-
-def fibril_area(i):
-    """
-    Delivers fibril area in nm^2, for some fibril in the Fibril Record i
-    """
-    area_planewise=np.full(nplanes,-1.)  #an array of the areas for each fibril
-    for pID in range(nplanes):
-        if fib_rec[i, pID]!=-1:
-            area_planewise[pID]=(props[pID, fib_rec[i,pID],3])*(pxsize**2)
-    area_planewise=area_planewise[area_planewise>-1.]  #getting rid of junk slices / places where absent
-    mean = np.mean(area_planewise)
-    return mean, area_planewise
-fibrilArea=np.array([fibril_area(i)[0] for i in range(nfibs)])
-np.save(resultsDir+r'\rank_' +str(rank) +'_area.npy', fibrilArea)
-md.my_histogram(fibrilArea/100, 'Area ($10^3$ nm$^2$)', 'Cross Sectional Area of tracked fibrils', binwidth=50)
-#%%----------------Length vs cross secitonal Area
-
-plt.plot(lengths_scaled,fibrilArea/10**6, '.r')
-plt.xlabel('Normalised lengths')
-plt.ylabel('Cross Sectional Area (um$^2$)')
-plt.show()
-
-#%%----------------------------------------------------------------------------
-#....................TESTING FOR STATISTICAL SIGNIFICANCE ....................
-#------------------------------------------------------------------------------
-
-seg_MFDs=np.ravel(props[:,:,5]*pxsize) #MFDs of all the segments in the volume
-lower, upper=(80, 300)
-relevantSegMFDs=seg_MFDs[(seg_MFDs>lower) & (seg_MFDs<upper)]
-kstest=stats.ks_2samp(fib_MFDs, relevantSegMFDs)
-result="reject" if kstest[1]<0.05 else "accept"
-
-md.my_histogram([fib_MFDs, relevantSegMFDs], 'Feret Diameter (nm)', title=f'$H_0$, these two samples come from the same distribution \n p={kstest[1]:.2e}: {result}', labels=['Fibrils', 'Segments'], dens=True, binwidth=20, cols=['red', 'lime'], filename=resultsDir+r'\rank_' +str(rank)+'_statistical_significance_CS_dist.png')
-x=np.linspace(upper, lower, 1000)
-#plt.plot(np.linspace(upper, lower, 1000), stats.kde.gaussian_kde(relevantSegMFDs)(x))
