@@ -162,7 +162,7 @@ np.save(resultsDir+r'\area.npy', fibrilArea)
 md.my_histogram(fibrilArea/100, 'Area ($10^3$ nm$^2$)', 'Cross Sectional Area of tracked fibrils', binwidth=50)
 #%%----------------Length vs cross secitonal Area
 
-plt.plot(lengths_scaled,area/10**6, '.r')
+plt.plot(lengths_scaled,fibrilArea/10**6, '.r')
 plt.xlabel('Normalised lengths')
 plt.ylabel('Cross Sectional Area (um$^2$)')
 plt.show()
@@ -170,16 +170,23 @@ plt.show()
 #%%----------------------------------------------------------------------------
 #....................TESTING FOR STATISTICAL SIGNIFICANCE ....................
 #------------------------------------------------------------------------------
+#Q: which segments don't get picked up?
+tracked_FD=np.ones([1]);untracked_FD=np.ones([1]);
+for pID in range (nplanes):
+    tracked=np.setdiff1d(np.unique(fib_rec[:,pID]),np.array([-1]))
+    tracked_FD=np.concatenate((tracked_FD,props[pID, tracked, 5]*pxsize))
+    untracked=np.setdiff1d(np.arange(np.count_nonzero(props[0,:,3])),segs_tracked)
+    untracked_FD=np.concatenate((untracked_FD,props[pID, untracked, 5]*pxsize))
 
-seg_MFDs=np.ravel(props[:,:,5]*pxsize) #MFDs of all the segments in the volume
-lower, upper=(80, 300)
-relevantSegMFDs=seg_MFDs[(seg_MFDs>lower) & (seg_MFDs<upper)]
-kstest=stats.ks_2samp(fib_MFDs, relevantSegMFDs)
+rel_untracked_FD=untracked_FD[(untracked_FD>lower) & (untracked_FD<upper)]
+rel_tracked_FD=tracked_FD[(tracked_FD>lower) & (tracked_FD<upper)]
+
+kstest=stats.ks_2samp(rel_untracked_FD, rel_tracked_FD)
 result="reject" if kstest[1]<0.05 else "accept"
 
-md.my_histogram([fib_MFDs, relevantSegMFDs], 'Feret Diameter (nm)', title=f'$H_0$, these two samples come from the same distribution \n p={kstest[1]:.2e}: {result}', labels=['Fibrils', 'Segments'], dens=True, binwidth=20, cols=['red', 'lime'], filename=resultsDir+r'\statistical_significance_CS_dist.png')
-x=np.linspace(upper, lower, 1000)
-#plt.plot(np.linspace(upper, lower, 1000), stats.kde.gaussian_kde(relevantSegMFDs)(x))
+kstest
+
+md.my_histogram([rel_tracked_FD, rel_untracked_FD],'Feret Diameter (nm)', binwidth=50,cols=['red', 'lime'], dens=True, title=f'$H_0$, these two samples come from the same distribution. p={kstest[1]:.2e}: {result}\n Distribution limited to ({lower}, {upper}) nm', labels=['Tracked fibrils FD', 'Untracked segments FD'],filename=resultsDir+r'\statistical_significance_CS_dist.png')
 
 
 #%%----------------------------------------------------------------------------
