@@ -184,9 +184,7 @@ rel_tracked_FD=tracked_FD[(tracked_FD>lower) & (tracked_FD<upper)]
 kstest=stats.ks_2samp(rel_untracked_FD, rel_tracked_FD)
 result="reject" if kstest[1]<0.05 else "accept"
 
-kstest
-
-md.my_histogram([rel_tracked_FD, rel_untracked_FD],'Feret Diameter (nm)', binwidth=50,cols=['red', 'lime'], dens=True, title=f'$H_0$, these two samples come from the same distribution. p={kstest[1]:.2e}: {result}\n Distribution limited to ({lower}, {upper}) nm', labels=['Tracked fibrils FD', 'Untracked segments FD'],filename=resultsDir+r'\statistical_significance_CS_dist.png')
+md.my_histogram([rel_tracked_FD, rel_untracked_FD],'Feret diameter (nm)', binwidth=50,cols=['red', 'lime'], dens=True, title=f'$H_0$, these two samples come from the same distribution. p={kstest[1]:.2e}: {result}\n Distribution limited to ({lower}, {upper}) nm', labels=['Tracked fibrils FD', 'Untracked segments FD'],filename=resultsDir+r'\statistical_significance_CS_dist.png')
 
 
 #%%----------------------------------------------------------------------------
