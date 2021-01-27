@@ -21,8 +21,8 @@ plt.rcParams['animation.ffmpeg_path'] = 'C:\\FFmpeg\\bin\\ffmpeg.exe'  # SPECIFI
 #----------------------------------------------------------------------------------
 #...............................1. USER INPUT .................................
 #------------------------------------------------------------------------------------
-fromscratch=False
-whichdata=0;skip=1
+fromscratch=True
+whichdata=9.15;skip=1
 #a, b, c=10,0.1,5
 
 #----------------------------------------------------------------------------------
@@ -140,6 +140,15 @@ def lastplane_tomap(junk):
     while np.any(junk==pID):
      pID-=1
     return pID-increments_back_forward(pID, junk)[0]
+
+def initialise_fibril_record():
+    global nfibs
+    global fib_rec
+    global nplanes
+    nfibs=np.max(morphComp[0]) #number eqivalent to n objects in first slice
+    fib_rec=np.full((nfibs,nplanes),-1, dtype=int)  #-1 means no fibril here, as indices are >= 0
+    fib_rec[:,0]=np.arange(nfibs)  #use like fib_rec[fID, pID]
+
 def fibril_mapping(a,b,c,skip=1):
     global nfibs
     global fib_rec
@@ -147,11 +156,8 @@ def fibril_mapping(a,b,c,skip=1):
     start_time=time_s()
     with open(dirResults+r'\fibtrack_status_update.csv', 'a') as status_update:
         status_update.write('\ntime '+md.t_d_stamp()+'\nJunk slices,'+str(junk)+"\npID,nfibs,time since mapping began")
-    nfibs=np.max(morphComp[0]) #number eqivalent to n objects in first slice
-    fib_rec=np.full((nfibs,nplanes),-1, dtype=int)  #-1 means no fibril here, as indices are >= 0
-    fib_rec[:,0]=np.arange(nfibs)  #use like fib_rec[fID, pID]
 
-    for pID in range (lastplane_tomap(junk)):
+    for pID in range (2):#(lastplane_tomap(junk)):
         if np.any(junk==pID):#If the slice is junk, skip the mapping.
             #x=1
             continue
@@ -199,15 +205,23 @@ def fibril_mapping(a,b,c,skip=1):
             status_update.write('\n'+','.join(map(str,[pID,nfibs,time_s()-start_time])))
         np.save(dirResults+'fib_rec', fib_rec)
 
+
+def trim_fib_rec():
+    return 0
+
 #%%---------------------------------------------------------------------------
 #.................................4. MAIN FLOW ...........................
 #-------------------------------------------------------------------------------
 
 a,b,c=1,1,1
+
+initialise_fibril_record()
 fibril_mapping(a, b, c)
+
+
+md.animation_inline(morphComp,np.arange(nfibs), fib_rec,0,2)
 
 
 #%%---------------------------------------------------------------------------
 #.................................SANDBOX....................................
 #-------------------------------------------------------------------------------
-testing
