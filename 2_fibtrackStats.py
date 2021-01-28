@@ -10,7 +10,7 @@ plt.rcParams['savefig.facecolor']='white'
 #----------------------------------------------------------------------------
 #.....................................USER INPUT.............................
 #-------------------------------------------------------------------------------
-whichdata=0
+whichdata=9.15
 desired_length=0.9
 resultsDir=md.find_3V_data(whichdata)+'results\\';
 #----------------------------------------------------------------------------
@@ -59,7 +59,7 @@ print('fraction captured in cross section', nfibs/meanperplane)
 #md.export_animation(resultsDir,"dropped_fibril_inquiry_50to90", morphComp,half_length_fibril_indices,fib_rec_0, dt=1000)
 
 #%% ALL
-#md.animation_inline(morphComp,np.arange(nfibs), fib_rec,0,2)
+md.animation_inline(morphComp,np.arange(nfibs), fib_rec,0,2)
 #md.export_animation(resultsDir,"90pc_plus_animation", morphComp,np.arange(nfibs),fib_rec, dt=1000)
 
 #%%----------------------------------------------------------------------------

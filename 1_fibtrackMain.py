@@ -92,6 +92,7 @@ else: #to save time
     nplanes, npix, _=morphComp.shape
 
 Lscale=np.median(np.ravel(props[:,:,5])) # A typical lengthscale, calculated from the median value of feret diameter, in pixels. To find the equiv in nm, multiply by pxsize
+
 #%%---------------------------------------------------------------------------
 #.................................3. FIBRIL MAPPING...........................
 #-------------------------------------------------------------------------------
@@ -142,22 +143,19 @@ def lastplane_tomap(junk):
     return pID-increments_back_forward(pID, junk)[0]
 
 def initialise_fibril_record():
-    global nfibs
-    global fib_rec
     global nplanes
     nfibs=np.max(morphComp[0]) #number eqivalent to n objects in first slice
     fib_rec=np.full((nfibs,nplanes),-1, dtype=int)  #-1 means no fibril here, as indices are >= 0
     fib_rec[:,0]=np.arange(nfibs)  #use like fib_rec[fID, pID]
+    return fib_rec, nfibs
 
-def fibril_mapping(a,b,c,skip=1):
-    global nfibs
-    global fib_rec
+def fibril_mapping(a,b,c,fib_rec, nfibs,skip=1, rAnge=lastplane_tomap(junk)):
     global nplanes
     start_time=time_s()
     with open(dirResults+r'\fibtrack_status_update.csv', 'a') as status_update:
         status_update.write('\ntime '+md.t_d_stamp()+'\nJunk slices,'+str(junk)+"\npID,nfibs,time since mapping began")
 
-    for pID in range (2):#(lastplane_tomap(junk)):
+    for pID in range (rAnge):#(lastplane_tomap(junk)):
         if np.any(junk==pID):#If the slice is junk, skip the mapping.
             #x=1
             continue
@@ -203,11 +201,20 @@ def fibril_mapping(a,b,c,skip=1):
         # save/export stuff
         with open(dirResults+r'\fibtrack_status_update.csv', 'a') as status_update:
             status_update.write('\n'+','.join(map(str,[pID,nfibs,time_s()-start_time])))
-        np.save(dirResults+'fib_rec', fib_rec)
+        #np.save(dirResults+'fib_rec', fib_rec)
+    return fib_rec, nfibs
 
+def trim_fib_rec( fib_rec_0, nfibs_0,desired_length=0.9):
+    global nplanes
+    #Q: How long are all the fibrils in the original fibril rec?
+    nexist_0=np.zeros(nfibs_0, dtype='int')
+    for i in range(nfibs_0):
+        nexist_0[i]=np.max(np.nonzero(fib_rec_0[i]>-1))-np.min(np.nonzero(fib_rec_0[i]>-1))+1
+    longfibs=np.where(nexist_0>nplanes*desired_length)[0]  #the indices of the long fibirls
+    #Erasing fibril record for short fibrils. The only way to map between the two is using longfibs. Reindexing also!
+    fib_rec_1=fib_rec_0[longfibs]
+    nfibs_1=longfibs.size
 
-def trim_fib_rec():
-    return 0
 
 #%%---------------------------------------------------------------------------
 #.................................4. MAIN FLOW ...........................
@@ -215,11 +222,29 @@ def trim_fib_rec():
 
 a,b,c=1,1,1
 
-initialise_fibril_record()
-fibril_mapping(a, b, c)
+fib_rec, nfibs=initialise_fibril_record()
+
+
+fib_rec_1, nfibs_1=fibril_mapping(a, b, c, fib_rec, nfibs)
+
+fib_rec.shape
+fib_rec_1.shape
+
+
+fib_rec_1
+
+md.beep()
 
 
 md.animation_inline(morphComp,np.arange(nfibs), fib_rec,0,2)
+
+
+
+
+
+print(nfibs)
+temp=trim_fib_rec(fib_rec, nfibs)
+temp.shape
 
 
 #%%---------------------------------------------------------------------------
