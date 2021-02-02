@@ -21,7 +21,7 @@ plt.rcParams['animation.ffmpeg_path'] = 'C:\\FFmpeg\\bin\\ffmpeg.exe'  # SPECIFI
 #----------------------------------------------------------------------------------
 #...............................1. USER INPUT .................................
 #------------------------------------------------------------------------------------
-fromscratch=True
+fromscratch=False
 whichdata=9.15;skip=1
 #a, b, c=10,0.1,5
 
@@ -202,7 +202,7 @@ def fibril_mapping(a,b,c,fib_rec, nfibs,skip=1, rAnge=lastplane_tomap(junk)):
         with open(dirResults+r'\fibtrack_status_update.csv', 'a') as status_update:
             status_update.write('\n'+','.join(map(str,[pID,nfibs,time_s()-start_time])))
         #np.save(dirResults+'fib_rec', fib_rec)
-    return fib_rec, nfibs
+    return fib_rec
 
 def trim_fib_rec( fib_rec_0, nfibs_0,desired_length=0.9):
     global nplanes
@@ -225,9 +225,30 @@ a,b,c=1,1,1
 fib_rec, nfibs=initialise_fibril_record()
 
 
-fib_rec_1, nfibs_1=fibril_mapping(a, b, c, fib_rec, nfibs)
-
 fib_rec.shape
+
+
+fib_rec
+
+a=fibril_mapping(a, b, c, fib_rec, nfibs)
+fib_rec[100]
+
+
+
+
+
+a.shape
+fib_rec.shape
+
+
+
+
+
+
+
+
+md.beep()
+
 fib_rec_1.shape
 
 
