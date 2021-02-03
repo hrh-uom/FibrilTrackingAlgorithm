@@ -144,6 +144,9 @@ def initialise_fibril_record():
     #return fib_rec
 
 def fibril_mapping(a,b,c,skip=1, rAnge=lastplane_tomap(junk)):
+    """
+    Populates fibril record, from top plane through the volume
+    """
     global fib_rec
     global nfibs
     FR_local=fib_rec.copy()
@@ -202,6 +205,9 @@ def fibril_mapping(a,b,c,skip=1, rAnge=lastplane_tomap(junk)):
     fib_rec=FR_local.copy()
 
 def trim_fib_rec(frac=0.9):
+    """
+    Trims fibril record to fibrils which are less than some fraction of the total number of planes
+    """
     global fib_rec
     global nfibs
     FR_local=fib_rec.copy()
@@ -245,3 +251,18 @@ md.animation_inline(morphComp,np.arange(nfibs), fib_rec,0,nplanes)
 #%%---------------------------------------------------------------------------
 #.................................SANDBOX....................................
 #-------------------------------------------------------------------------------
+def make_biscuit_morph_comp():
+    """
+    Makes a copy of morphological components removing all of the fibrils that are tracked. Like when you cut load of biscuits from a rolled out piece of pastry and have the leftovers.
+    """
+    morphCompDynamic=morphComp.copy() #this morph comp will have elements deleted as they are mapped.
+    for pID in range (nplanes):
+        all_obj=np.unique(morphCompDynamic[pID])-1;all_obj=all_obj[all_obj>-1]
+        tracked_obj=fib_rec[:,pID][fib_rec[:,pID]>-1]
+        tracked_indices=np.array(np.unravel_index(np.where(tracked_obj[:,None]+1== morphCompDynamic[pID].ravel())[1], (npix,npix))).T #https://stackoverflow.com/questions/49987552/numpy-where-used-with-list-of-values
+        for k in range (len(tracked_indices)):
+            #effectively deleting mapped fibrils, leaving us with the leftovers
+            morphCompDynamic[pID, tracked_indices[k,0], tracked_indices[k,1]]=0
+    return morphCompDynamic
+MC2=make_biscuit_morph_comp()
+md.animation_inline(MC2,np.arange(nfibs), fib_rec,0,nplanes)
