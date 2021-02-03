@@ -2,3 +2,5 @@ SEGMENT/OBJECT - an object in a single 3View plane. May be a fibril or some othe
 STRAND - some consecutive jointed segments, mapped by the algorithm
 FIBRIL - strands which are deemed to be fibrils. This is generally done by demonstrating they stretch the full length of the volume
 MFD - Minimum feret diameter. Defined as the smallest diameter of the convex hull
+MC- Morphological Component array. At each plane, every individual object is given a label. Starting from 1, and going up. The background is labelled 0.
+FR - Fibril Record. 2D array, goes like FR[fibril_number, plane_number]. Stores the numbers of the corresponding objects in MC. 
