@@ -23,25 +23,20 @@ plt.rcParams['animation.ffmpeg_path'] = 'C:\\FFmpeg\\bin\\ffmpeg.exe'  # SPECIFI
 #------------------------------------------------------------------------------------
 fromscratch=False
 whichdata=0;skip=1
-#a, b, c=10,0.1,5
-
+start_plane, end_plane=10, 25
 #----------------------------------------------------------------------------------
 #.........................2. IMPORT IMAGES , LABEL, MEASURE ......................
 #------------------------------------------------------------------------------------
-def create_binary_stack(dir3V):
+def create_binary_stack(dir3V, start_plane,end_plane):
     """
     imports images from given 3V directory
     """
-    imagePath = glob.glob( dir3V + 'fin\\*.tif')
+    imagePath = glob.glob( dir3V + 'fin\\*.tif')[start_plane:end_plane]
     imgstack_neg = np.array( [np.array(Image.open(img).convert('L'), 'uint8') for img in imagePath])
     imgstack=np.logical_not(imgstack_neg).astype(int)  #May not always be necessary to invert!
     return imgstack
 def compress_by_skipping(skip):
-    global dz
-    global nplanes
-    global junk
     global imgstack
-    global dirResults
     if skip>1: #Resize array and renumber junk slices if skipping slices
         keep=skip*np.arange(nplanes/skip).astype(int)
         imgstack=imgstack[keep]
@@ -50,8 +45,6 @@ def compress_by_skipping(skip):
         nplanes=imgstack.shape[0]
         dirResults= dir3V+'skip_%d_results\\'%skip
 def create_morph_comp(imgstack):
-    global npix
-    global nplanes
     morphComp=np.zeros([nplanes, npix, npix], dtype=int) #initialising array for morph comp
     for i in range(nplanes):
         morphComp[i]=label(imgstack[i])
@@ -75,12 +68,12 @@ def create_properties_table(morphComp):
 #test
 dir3V=md.find_3V_data(whichdata); # find the relevant data based on the timepoint desired
 pxsize, dz=np.genfromtxt( dir3V+'pxsize.csv', delimiter=',')[1] #import voxel size
-junk=pd.read_csv( dir3V+'junkslices.csv', header=None).to_numpy().T[0] #which slices are broken
-dirResults= dir3V+'results\\' #Create subfolder (if it doesnt already exist!)
+junk=pd.read_csv( dir3V+'junkslices.csv', header=None).to_numpy().T[0]-start_plane #which slices are broken
+dirResults= dir3V+f'results_{start_plane}_{end_plane}\\' #Create subfolder (if it doesnt already exist!)
 md.create_Directory(dirResults)
 
 if fromscratch:
-    imgstack=create_binary_stack(dir3V) #import images and create binary array
+    imgstack=create_binary_stack(dir3V, start_plane,end_plane) #import images and create binary array
     nplanes, npix, _ = imgstack.shape #measure array dims
     if skip>1:
         compress_by_skipping(skip)
@@ -140,6 +133,7 @@ def lastplane_tomap(junk):
     while np.any(junk==pID):
      pID-=1
     return pID-increments_back_forward(pID, junk)[0]
+
 def fibril_mapping(a,b,c,skip=1):
     global nfibs
     global fib_rec
@@ -153,7 +147,6 @@ def fibril_mapping(a,b,c,skip=1):
 
     for pID in range (lastplane_tomap(junk)):
         if np.any(junk==pID):#If the slice is junk, skip the mapping.
-            #x=1
             continue
         dz_b, dz_f=increments_back_forward(pID,junk)
         err_table=np.zeros([nfibs,np.max(morphComp[pID+dz_f])])  #table of errors i,j.Overwritten at each new pID
@@ -210,4 +203,8 @@ fibril_mapping(a, b, c)
 #%%---------------------------------------------------------------------------
 #.................................SANDBOX....................................
 #-------------------------------------------------------------------------------
-testing
+md.animation_inline(morphComp,np.arange(nfibs), fib_rec,0,nplanes)
+
+
+##%%
+md.beep()
