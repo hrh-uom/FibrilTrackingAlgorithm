@@ -65,7 +65,7 @@ def create_properties_table(morphComp):
     np.save(dirResults+'props', props)
     return props
     #return temp.shape
-#test
+
 dir3V=md.find_3V_data(whichdata); # find the relevant data based on the timepoint desired
 pxsize, dz=np.genfromtxt( dir3V+'pxsize.csv', delimiter=',')[1] #import voxel size
 junk=pd.read_csv( dir3V+'junkslices.csv', header=None).to_numpy().T[0]-start_plane #which slices are broken
@@ -136,19 +136,23 @@ def lastplane_tomap(junk):
     return pID-increments_back_forward(pID, junk)[0]
 
 def initialise_fibril_record():
-    global nplanes
+    global nfibs
+    global fib_rec
     nfibs=np.max(morphComp[0]) #number eqivalent to n objects in first slice
     fib_rec=np.full((nfibs,nplanes),-1, dtype=int)  #-1 means no fibril here, as indices are >= 0
     fib_rec[:,0]=np.arange(nfibs)  #use like fib_rec[fID, pID]
-    return fib_rec, nfibs
+    #return fib_rec
 
-def fibril_mapping(a,b,c,fib_rec, nfibs,skip=1, rAnge=lastplane_tomap(junk)):
-    global nplanes
+def fibril_mapping(a,b,c,skip=1, rAnge=lastplane_tomap(junk)):
+    global fib_rec
+    global nfibs
+    FR_local=fib_rec.copy()
     start_time=time_s()
+    nfibs=FR_local.shape[0]
     with open(dirResults+r'\fibtrack_status_update.csv', 'a') as status_update:
         status_update.write('\ntime '+md.t_d_stamp()+'\nJunk slices,'+str(junk)+"\npID,nfibs,time since mapping began")
 
-    for pID in range (rAnge):#(lastplane_tomap(junk)):
+    for pID in range (lastplane_tomap(junk)):
         if np.any(junk==pID):#If the slice is junk, skip the mapping.
             #x=1
             continue
@@ -158,12 +162,12 @@ def fibril_mapping(a,b,c,fib_rec, nfibs,skip=1, rAnge=lastplane_tomap(junk)):
         #CREATING ERROR TABLES
         for fID in range(nfibs):
             #Isolating the relevant 'patch in morphological components
-            if fib_rec[fID,pID]!=-1: # catching nonexistent fibrils, true in pID>0
-                cofI=props[pID,fib_rec[fID,pID],0:2]#centroid of fibril in plane
+            if FR_local[fID,pID]!=-1: # catching nonexistent fibrils, true in pID>0
+                cofI=props[pID,FR_local[fID,pID],0:2]#centroid of fibril in plane
                 index=np.ndarray.flatten(md.search_window(cofI, npix/10, npix)).astype('int')
                 compare_me=np.delete(np.unique(np.ndarray.flatten(morphComp[pID+dz_f,index[0]:index[1], index[2]:index[3]]-1) ),0) #find a more neat way to do this. List of indices in next slice to look at.
                 for j in compare_me: #going through relevant segments in next slice
-                    err_table[fID,j]=err(pID, fib_rec[fID,pID], fib_rec[fID,pID-dz_b], j,dz_b, dz_f, a, b, c)
+                    err_table[fID,j]=err(pID, FR_local[fID,pID], FR_local[fID,pID-dz_b], j,dz_b, dz_f, a, b, c)
 
         #sorted lists of the errors and the pairs of i,j which yield these Errors
         sort_errs=sort_errs=np.sort(err_table, axis=None)
@@ -176,7 +180,7 @@ def fibril_mapping(a,b,c,fib_rec, nfibs,skip=1, rAnge=lastplane_tomap(junk)):
         i=0  #Matching up
         while sort_err_pairs.shape[0]>0:
             match=sort_err_pairs[0]  # picks out smallest error match
-            fib_rec[match[0], pID+dz_f]=match[1]  # fills in the corresponding fibril recor with this match
+            FR_local[match[0], pID+dz_f]=match[1]  # fills in the corresponding fibril recor with this match
             #delete all other occurences of i,j
             deleteme=np.unique(np.ndarray.flatten(np.concatenate((np.argwhere(sort_err_pairs[:,0]==match[0]),np.argwhere(sort_err_pairs[:,1]==match[1]))))).tolist()
             sort_err_pairs=np.delete(sort_err_pairs, deleteme,axis=0)
@@ -184,29 +188,31 @@ def fibril_mapping(a,b,c,fib_rec, nfibs,skip=1, rAnge=lastplane_tomap(junk)):
 
         #LOOK FOR MISSED FIBRILS
         all=np.arange(np.max(morphComp[pID+dz_f]))
-        mapped=np.unique(fib_rec[:,pID+dz_f][fib_rec[:,pID+dz_f]>-1])
+        mapped=np.unique(FR_local[:,pID+dz_f][FR_local[:,pID+dz_f]>-1])
         new_objects=np.setdiff1d(all, mapped)
         fibrec_append=np.full((new_objects.size,nplanes),-1, dtype=int)  #an extra bit to tack on the end of the fibril record accounting for all these new objects
         fibrec_append[:,pID+dz_f]=new_objects
-        fib_rec=np.concatenate((fib_rec,fibrec_append))
+        FR_local=np.concatenate((FR_local,fibrec_append))
         nfibs+=new_objects.size
 
         # save/export stuff
         with open(dirResults+r'\fibtrack_status_update.csv', 'a') as status_update:
             status_update.write('\n'+','.join(map(str,[pID,nfibs,time_s()-start_time])))
-        #np.save(dirResults+'fib_rec', fib_rec)
-    return fib_rec
+        #np.save(dirResults+'fib_rec', FR_out)
+    fib_rec=FR_local.copy()
 
-def trim_fib_rec( fib_rec_0, nfibs_0,desired_length=0.9):
-    global nplanes
+def trim_fib_rec(frac=0.9):
+    global fib_rec
+    global nfibs
+    FR_local=fib_rec.copy()
     #Q: How long are all the fibrils in the original fibril rec?
-    nexist_0=np.zeros(nfibs_0, dtype='int')
-    for i in range(nfibs_0):
-        nexist_0[i]=np.max(np.nonzero(fib_rec_0[i]>-1))-np.min(np.nonzero(fib_rec_0[i]>-1))+1
-    longfibs=np.where(nexist_0>nplanes*desired_length)[0]  #the indices of the long fibirls
+    nexist=np.zeros(nfibs, dtype='int')
+    for i in range(nfibs):
+        nexist[i]=np.max(np.nonzero(FR_local[i]>-1))-np.min(np.nonzero(FR_local[i]>-1))+1
+    longfibs=np.where(nexist>nplanes*frac)[0]  #the indices of the long fibirls
     #Erasing fibril record for short fibrils. The only way to map between the two is using longfibs. Reindexing also!
-    fib_rec_1=fib_rec_0[longfibs]
-    nfibs_1=longfibs.size
+    fib_rec=FR_local[longfibs].copy()
+    nfibs=longfibs.size
 
 
 #%%---------------------------------------------------------------------------
@@ -215,50 +221,25 @@ def trim_fib_rec( fib_rec_0, nfibs_0,desired_length=0.9):
 
 a,b,c=1,1,1
 
-fib_rec, nfibs=initialise_fibril_record()
+initialise_fibril_record()
+
+fib_rec.shape
+nfibs
+
+fibril_mapping(a, b, c)
+nfibs
 
 
 fib_rec.shape
-
-
-fib_rec
-
-a=fibril_mapping(a, b, c, fib_rec, nfibs)
-fib_rec[100]
-
-
-
-
-
-a.shape
+trim_fib_rec()
 fib_rec.shape
+nfibs
 
 
 
+md.animation_inline(morphComp,np.arange(nfibs), fib_rec,0,nplanes)
 
 
-
-
-
-md.beep()
-
-fib_rec_1.shape
-
-
-fib_rec_1
-
-md.beep()
-
-
-md.animation_inline(morphComp,np.arange(nfibs), fib_rec,0,2)
-
-
-
-
-
-print(nfibs)
-temp=trim_fib_rec(fib_rec, nfibs)
-temp.shape
 
 
 #%%---------------------------------------------------------------------------
