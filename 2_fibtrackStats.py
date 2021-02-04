@@ -12,12 +12,14 @@ plt.rcParams['savefig.facecolor']='white'
 #-------------------------------------------------------------------------------
 whichdata=0
 desired_length=0.9
-dirResults=md.find_3V_data(whichdata)+'results\\';
+dirResults=md.find_3V_data(whichdata)+'results_0_101';
+
+
 #----------------------------------------------------------------------------
 #....................IMPORT DATA FROM FIBRIL MAPPING....................
 #------------------------------------------------------------------------------
 try:
-    fib_rec_0=np.load(dirResults+r'\fib_rec.npy') #original, import fibril record
+    fib_rec_0=np.load(dirResults+r'\fib_rec_safe.npy') #original, import fibril record
     morphComp=np.load(dirResults+r'\morphComp.npy')
     props=np.load(dirResults+r'\props.npy')
 except:
@@ -35,7 +37,7 @@ nexist_0=np.zeros(nfibs_0, dtype='int')
 for i in range(nfibs_0):
     nexist_0[i]=np.max(np.nonzero(fib_rec_0[i]>-1))-np.min(np.nonzero(fib_rec_0[i]>-1))+1
 longfibs=np.where(nexist_0>nplanes*desired_length)[0]  #the indices of the long fibirls
-title_='Number of entries %i, Number above 90pc %i, Percentage %.1f '%(nfibs_0, longfibs.size, 100*longfibs.size/nfibs_0)
+title_=f'Strands: {nfibs_0}, > {desired_length*100:.0f}%: {longfibs.size} $\sim$ {100*longfibs.size/nfibs_0:.0f}%'
 
 md.my_histogram(100*nexist_0/nplanes,'Number of slices present',title=title_, binwidth=5)
 
@@ -175,9 +177,10 @@ tracked_FD=np.ones([1]);untracked_FD=np.ones([1]);
 for pID in range (nplanes):
     tracked=np.setdiff1d(np.unique(fib_rec[:,pID]),np.array([-1]))
     tracked_FD=np.concatenate((tracked_FD,props[pID, tracked, 5]*pxsize))
-    untracked=np.setdiff1d(np.arange(np.count_nonzero(props[0,:,3])),segs_tracked)
+    untracked=np.setdiff1d(np.arange(np.count_nonzero(props[0,:,3])),tracked)
     untracked_FD=np.concatenate((untracked_FD,props[pID, untracked, 5]*pxsize))
 
+lower, upper=90,350
 rel_untracked_FD=untracked_FD[(untracked_FD>lower) & (untracked_FD<upper)]
 rel_tracked_FD=tracked_FD[(tracked_FD>lower) & (tracked_FD<upper)]
 
