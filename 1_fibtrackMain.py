@@ -8,7 +8,6 @@ from IPython.display import HTML
 from skimage.measure import label, regionprops,regionprops_table
 from skimage.color import label2rgb
 from time import time as time_s
-import winsound #for development
 from importlib import reload # reload(module_of_choice);
 import customFunctions as md
 from feret_diameter import feret_diameters_2d
@@ -214,12 +213,14 @@ def trim_fib_rec(FR_local,frac=0.9):
         nexist[i]=np.max(np.nonzero(FR_local[i]>-1))-np.min(np.nonzero(FR_local[i]>-1))+1
     longfibs=np.where(nexist>nplanes*frac)[0]  #the indices of the long fibirls
     #Erasing fibril record for short fibrils. The only way to map between the two is using longfibs. Reindexing also!
+    np.save(dirResults+f'fib_rec_trim_{frac}', FR_local[longfibs])
+    np.save(dirResults+f'labelledVol_{frac}',md.label_volume(MC,np.arange(longfibs.size), FR_local[longfibs], nplanes))
     return FR_local[longfibs]
 
 #%%---------------------------------------------------------------------------
 #.................................4. MAIN FLOW ...........................
 #-------------------------------------------------------------------------------
-
+np.ones(5).size
 a,b,c=1,1,1
 
 FR_core=initialise_fibril_record(MC)
@@ -230,20 +231,23 @@ FR_core.shape
 FR_core=fibril_mapping(a, b, c, MC,FR_core)
 FR_core.shape
 
+FR_core=trim_fib_rec(FR_core, frac=0.9)
 
-
-FR_core=trim_fib_rec(FR_core)
 FR_core.shape[0]
 
-md.animation_inline(MC,np.arange(FR_core.shape[0]), FR_core,0,nplanes)
+np.save(dirResults+f'labeled_volume', FR_local[longfibs])
+
+md.beep()
+#md.animation_inline(MC,np.arange(FR_core.shape[0]), FR_core,0,nplanes)
 
 #%%---------------------------------------------------------------------------
 #.................................SANDBOX....................................
 #-------------------------------------------------------------------------------
-def make_biscuit_morph_comp(MC_local, FR):
+def make_biscuit_morph_comp(MC_, FR):
     """
     Makes a copy of morphological components removing all of the fibrils that are tracked. Like when you cut load of biscuits from a rolled out piece of pastry and have the leftovers.
     """
+    MC_local=MC_.copy()
     nfibs=FR.shape[0]
     for pID in range (nplanes):
         all_obj=np.unique(MC_local[pID])-1;all_obj=all_obj[all_obj>-1]
@@ -271,7 +275,7 @@ FR_extra.shape
 
 
 
-FR_extra=trim_fib_rec(FR_extra)
+FR_extra=trim_fib_rec(FR_extra, frac=0.8)
 FR_extra.shape[0]
 
 
