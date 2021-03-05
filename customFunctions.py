@@ -14,7 +14,6 @@ import matplotlib.patches as patches
 plt.rcParams['figure.figsize'] = [10, 7.5];#default plot size
 plt.rcParams['savefig.facecolor']='white'
 plt.rcParams['animation.ffmpeg_path'] = 'C:\\FFmpeg\\bin\\ffmpeg.exe'; # SPECIFIC TO YOUR MACHINE, for inline animations
-import winsound #for development
 from  datetime import datetime as dt
 import os
 
@@ -28,8 +27,21 @@ def create_Directory(directory):
 def find_3V_data(whichdata=0):
     """
     finds relevant directory for three view based on choice of timepoint.
+    options 9am: 9, 9.15, 9.100
+    options 7pm: 19, 19.100
     """
-    dir3View='C:\\Users\\t97721hr\\Dropbox (The University of Manchester)\\Fibril Tracking Algorithm\\toy_data\\'
+    if whichdata==9:
+        dir3View = 'D:\\3View\\9am-achilles-fshx\\7.5um_crop_2\\'
+    elif whichdata==19:
+        dir3View = 'D:\\3View\\7pmAchx700\\7-5um\\'
+    elif whichdata==19.100: #dummyset1!!
+        dir3View='D:\\3View\\7pmAchx700\\7-5um\\dummy_0_100\\'
+    elif whichdata==9.15: #dummyset1!!
+        dir3View='D:\\3View\\9am-achilles-fshx\\7.5um_crop_2\\dummy_110_124\\'
+    elif whichdata==9.100:
+        dir3View='D:\\3View\\9am-achilles-fshx\\7.5um_crop_2\\dummy_100_200\\'
+    else:
+        dir3View='C:\\Users\\t97721hr\\Dropbox (The University of Manchester)\\Fibril Tracking Algorithm\\toy_data\\'
     return dir3View
 
 #----------------TIMING--------------------
@@ -73,7 +85,7 @@ def label_volume(morphComp,fib_group,fib_rec,endplane, startplane=0):
              value=fib_group[i]+1;
              labels[pID]=np.where(morphComp[pID]==fib_rec[fib_group[i], pID]+1, value, labels[pID])
  return labels;
-def create_animation(morphComp,fib_group, fib_rec, startplane, endplane, dt, fig_size):
+def create_animation(morphComp,fib_group, fib_rec, startplane, endplane, dt, fig_size, colourful=True):
     """
     Export mapping animation
     """
@@ -84,7 +96,7 @@ def create_animation(morphComp,fib_group, fib_rec, startplane, endplane, dt, fig
     container = []
     import scipy.ndimage
     labels=label_volume(morphComp,fib_group, fib_rec, endplane,startplane)
-    color = [tuple(np.random.random(size=3)) for i in range(5000)] #randomcolourlist
+    color = [tuple(np.random.random(size=3)) for i in range(len(fib_group))] #randomcolourlist
     color.insert(0,(1.,1.,1.)) #makesure other fibrils are white!!
     rgblabel=label2rgb(labels, bg_label=-1, colors=color);
     for pID in range(startplane, endplane):
