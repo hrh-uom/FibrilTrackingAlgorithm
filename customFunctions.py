@@ -11,11 +11,9 @@ from skimage.measure import label, regionprops,regionprops_table
 from skimage.color import label2rgb
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-plt.rcParams['figure.figsize'] = [10, 7.5];#default plot size
-plt.rcParams['savefig.facecolor']='white'
-plt.rcParams['animation.ffmpeg_path'] = 'C:\\FFmpeg\\bin\\ffmpeg.exe'; # SPECIFIC TO YOUR MACHINE, for inline animations
 from  datetime import datetime as dt
 import os
+plt.style.use('./mystyle.mplstyle')
 
 #----------------DIRECTORIES AND PATHS-------------------
 def create_Directory(directory):
@@ -109,6 +107,7 @@ def create_animation(morphComp,fib_group, fib_rec, startplane, endplane, dt, fig
     plt.close();
     return ani
     #ani.save(resultsDir+title+'.mp4')
+
 def export_animation(resultsDir, title, morphComp,fib_group, fib_rec, startplane=0, endplane=0, dt=500, figsize=20):
     ani=create_animation(morphComp,fib_group, fib_rec, startplane, endplane, dt, figsize )
     ani.save(resultsDir+title+'.mp4')
@@ -152,7 +151,6 @@ def my_histogram(arr,xlabel, dens=False, title=' ', labels=[], cols='g', binwidt
     if filename!=0:
         plt.savefig(filename)
     plt.show()
-
 
 #------------------------------STATS---------------------
 

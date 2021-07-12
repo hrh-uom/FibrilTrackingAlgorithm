@@ -11,12 +11,7 @@ from time import time as time_s
 from importlib import reload # reload(module_of_choice);
 import customFunctions as md
 from feret_diameter import feret_diameters_2d
-plt.rcParams['figure.figsize'] = [10, 7.5] #default plot size
-plt.rcParams['font.size']=16
-plt.rcParams['lines.linewidth'] = 2.0
-plt.rcParams['savefig.facecolor']='white'
-plt.rcParams['animation.ffmpeg_path'] = 'C:\\FFmpeg\\bin\\ffmpeg.exe'  # SPECIFIC TO YOUR MACHINE, for inline animations
-
+plt.style.use('./mystyle.mplstyle')
 #----------------------------------------------------------------------------------
 #...............................1. USER INPUT .................................
 #------------------------------------------------------------------------------------

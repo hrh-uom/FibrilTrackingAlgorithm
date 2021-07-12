@@ -2,31 +2,30 @@ import numpy as np
 import matplotlib.pyplot as plt
 import customFunctions as md
 from scipy import stats
-plt.rcParams['figure.figsize'] = [10, 7.5] #default plot size
-plt.rcParams['font.size']=16
-plt.rcParams['lines.linewidth'] = 2.0
-plt.rcParams['savefig.facecolor']='white'
+import glob
+import os
+plt.style.use('./mystyle.mplstyle')
 
 #----------------------------------------------------------------------------
 #.....................................USER INPUT.............................
 #-------------------------------------------------------------------------------
 whichdata=0
 desired_length=0.9
-dirResults=md.find_3V_data(whichdata)+'results_0_101';
-
+start_plane,end_plane=0,101
+dirResults=os.path.dirname(os.getcwd())+f'/toy-data/results_{start_plane}_{end_plane}'
 
 #----------------------------------------------------------------------------
 #....................IMPORT DATA FROM FIBRIL MAPPING....................
 #------------------------------------------------------------------------------
 try:
-    fib_rec_0=np.load(dirResults+r'\fib_rec_safe.npy') #original, import fibril record
-    morphComp=np.load(dirResults+r'\morphComp.npy')
-    props=np.load(dirResults+r'\props.npy')
+    fib_rec_0=np.load(dirResults+'/fib_rec_safe.npy') #original, import fibril record
+    morphComp=np.load(dirResults+'/morphComp.npy')
+    props=np.load(dirResults+'/props.npy')
 except:
     print("Error, no fibrec, morphComp, props found")
 nfibs_0,nplanes=fib_rec_0.shape
 npix=morphComp.shape[2]
-pxsize, dz=np.genfromtxt( md.find_3V_data(whichdata)+'pxsize.csv', delimiter=',')[1] #import voxel size
+pxsize, dz=np.genfromtxt( os.path.dirname(dirResults)+'/pxsize.csv', delimiter=',')[1] #import voxel size
 junk=np.nonzero(np.all(fib_rec_0==-1, axis=0))[0]
 
 #----------------------------------------------------------------------------
@@ -52,8 +51,6 @@ direction_unit_vectors=np.zeros((nfibs, 3))
 meanperplane=np.mean(np.apply_along_axis(np.max, 1, np.reshape(morphComp, (nplanes,npix**2 ))))
 print('fraction captured in cross section', nfibs/meanperplane)
 
-
-
 #%%---------------------------------------------------------------------------
 #..............................ANIMATIONS, OPTIONAL....................
 #-------------------------------------------------------------------------------
@@ -61,6 +58,7 @@ print('fraction captured in cross section', nfibs/meanperplane)
 #md.export_animation(dirResults,"dropped_fibril_inquiry_50to90", morphComp,half_length_fibril_indices,fib_rec_0, dt=1000)
 
 #%% ALL
+
 #md.animation_inline(morphComp,np.arange(nfibs), fib_rec,0,2)
 #md.export_animation(dirResults,"90pc_plus_animation", morphComp,np.arange(nfibs),fib_rec, dt=1000)
 
@@ -128,8 +126,8 @@ for i in range (nfibs):
 lengths_scaled*=nplanes/(fas_len*nexist)
 
 #How long are the long fibrils?
-md.my_histogram((lengths_scaled-1)*100, 'Critical Strain (%)', title='', binwidth=.5,filename=dirResults+r'\CS_dist.png')
-np.save(dirResults+r'\scaledlengths', lengths_scaled)
+md.my_histogram((lengths_scaled-1)*100, 'Critical Strain (%)', title='', binwidth=.5,filename=dirResults+'/CS_dist.png')
+np.save(dirResults+'/scaledlengths', lengths_scaled)
 
 #%%---------------------------Feret Diameter of each fibril
 
@@ -143,8 +141,8 @@ def fibril_MFD(i, FR): #maps between props and fibrec
     return mean,feret_planewise
 
 fib_MFDs=np.array([fibril_MFD(i, fib_rec)[0] for i in range(nfibs)])
-np.save(dirResults+r'\fib_MFDs', fib_MFDs)
-md.my_histogram(fib_MFDs, 'Minimum Feret Diameter (nm)', 'Minimum Feret Diameter distribution', filename=dirResults+r'\MFD_dist.png')
+np.save(dirResults+'/fib_MFDs', fib_MFDs)
+md.my_histogram(fib_MFDs, 'Minimum Feret Diameter (nm)', 'Minimum Feret Diameter distribution', filename=dirResults+'/MFD_dist.png')
 
 #%% ------------------------Area of each fibrils
 
@@ -160,7 +158,7 @@ def fibril_area(i):
     mean = np.mean(area_planewise)
     return mean, area_planewise
 fibrilArea=np.array([fibril_area(i)[0] for i in range(nfibs)])
-np.save(dirResults+r'\area.npy', fibrilArea)
+np.save(dirResults+'/area.npy', fibrilArea)
 md.my_histogram(fibrilArea/100, 'Area ($10^3$ nm$^2$)', 'Cross Sectional Area of tracked fibrils', binwidth=50)
 #%%----------------Length vs cross secitonal Area
 
@@ -187,7 +185,7 @@ rel_tracked_FD=tracked_FD[(tracked_FD>lower) & (tracked_FD<upper)]
 kstest=stats.ks_2samp(rel_untracked_FD, rel_tracked_FD)
 result="reject" if kstest[1]<0.05 else "accept"
 
-md.my_histogram([rel_tracked_FD, rel_untracked_FD],'Feret diameter (nm)', binwidth=50,cols=['red', 'lime'], dens=True, title=f'$H_0$, these two samples come from the same distribution. p={kstest[1]:.2e}: {result}\n Distribution limited to ({lower}, {upper}) nm', labels=['Tracked fibrils FD', 'Untracked segments FD'],filename=dirResults+r'\statistical_significance_CS_dist.png')
+md.my_histogram([rel_tracked_FD, rel_untracked_FD],'Feret diameter (nm)', binwidth=50,cols=['red', 'lime'], dens=True, title=f'$H_0$, these two samples come from the same distribution. p={kstest[1]:.2e}: {result}\n Distribution limited to ({lower}, {upper}) nm', labels=['Tracked fibrils FD', 'Untracked segments FD'],filename=dirResults+'/statistical_significance_CS_dist.png')
 
 
 #%%----------------------------------------------------------------------------
