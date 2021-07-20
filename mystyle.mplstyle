@@ -1,10 +1,10 @@
 axes.titlesize : 20
-axes.labelsize : 20
+axes.labelsize : 16
 lines.linewidth : 2
 lines.markersize : 10
-xtick.labelsize : 12
-ytick.labelsize : 12
-figure.figsize : 12,8
+xtick.labelsize : 16
+ytick.labelsize : 16
+figure.figsize : 10,6
 axes.grid:    True
 figure.titlesize : 24
 savefig.facecolor : white
