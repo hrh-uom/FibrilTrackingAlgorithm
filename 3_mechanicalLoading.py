@@ -89,7 +89,7 @@ plt.show()
 
 e_lin=np.linspace(0.0,max_strain,101)  #global strain values
 
-def calculate_fibril_stress(DSN,e_lin, e_c, MFDs, areas):
+def calculate_fibril_stress(DSN,e_lin, e_c, MFDs, areas, elasticmodulus):
     nfibs=e_c.size
     def F_fib(i, e_lin): #e=global strain, given in nN
         f=elasticmodulus*areas[i]*(e_lin-e_c[i])/(1+e_c[i])
@@ -106,7 +106,7 @@ def calculate_fibril_stress(DSN,e_lin, e_c, MFDs, areas):
     s=[stress(i) for i in e_lin]
     return np.array(s)
 
-sig_s=calculate_fibril_stress(0,e_lin, e_c, MFDs, areas)
+sig_s=calculate_fibril_stress(0,e_lin, e_c, MFDs, areas, elasticmodulus)
 plt.plot(100*e_lin,sig_s, '-r')
 plt.xlabel('Strain (%)')
 plt.ylabel('Stress (MPa)')
@@ -120,11 +120,11 @@ plt.show()
 #...........................  HYSTERESIS /VISSCOELAASTIC CURVE.................
 #------------------------------------------------------------------------
 e_lin=np.linspace(0.0,max_strain,101)  #global strain values
-
-sig_f=0.04*1000
-sig_f=0.0000139
-sig_f=543.974 #MPA OUTPUT FROM BENS ANALYSIS
-sig_f=1000
+#
+# sig_f=0.04*1000
+# sig_f=0.0000139
+# sig_f=543.974 #MPA OUTPUT FROM BENS ANALYSIS
+# # sig_f=100
 
 def find_timepoints_when_singular(timepoints):
     pad = len(max(timepoints, key=len))
@@ -144,6 +144,7 @@ def deps_dt(c2, c3, c4, tt):
 
 delt_sig_load=np.array([sig_f*sp.N(deps_dt(c2, c3, c4, tt) )for tt in timepoints[:,0]])
 delt_sig_unload=np.array([sig_f*sp.N(deps_dt(c2, c3, c4, tt) )for tt in timepoints[:,1]])
+
 
 
 totalstress_loading=vol_frac*sig_s+(1-vol_frac)*delt_sig_load
@@ -191,17 +192,17 @@ plt.show()
 #...........................QUANTIFICATION OF HYSTERESIS....................
 #------------------------------------------------------------------------
 from scipy.integrate import simps
-
 # Compute the area using the composite Simpson's rule.
 load_work=float(simps(totalstress_loading,dx=e_lin[1]))
 unload_work=float(simps(totalstress_unloading,dx=e_lin[1]))
 delta_work=load_work-unload_work
 
+
 #%%----------------------------------------------------------------------------
 #...........................TEXT FILE RESULTS....................
 #------------------------------------------------------------------------
-headings=['fluid stress (chosen)', 'elastic modulus (Mpa)', 'c1', 'c2', 'c3', 'c4', 'load work (MPa/volume)', 'unload work(MPa/volume)', 'delta work (MPa/volume)', 'fractional work']
-valuessymb=np.array([sig_f,elasticmodulus,c1, c2, c3, c4, load_work, unload_work, delta_work, delta_work/load_work] )
+headings=['fluid stress (chosen)', 'elastic modulus (Mpa)', 'c1', 'c2', 'c3', 'c4', 'load work per unit vol (kPa)', 'unload work per unit vol(kPa)', 'delta work /unit vol(kPa)', 'fractional work']
+valuessymb=np.array([sig_f,elasticmodulus,c1, c2, c3, c4, 1000*load_work, 1000*unload_work, 1000*delta_work, delta_work/load_work] )
 
 import csv
 with open(dir_output+'/params.csv', mode='w') as params:
