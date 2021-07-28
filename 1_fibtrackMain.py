@@ -16,8 +16,8 @@ plt.style.use('./mystyle.mplstyle')
 #...............................1. USER INPUT .................................
 #------------------------------------------------------------------------------------
 fromscratch=False
-whichdata=0;skip=1
-start_plane, end_plane=10, 25
+skip=1
+start_plane, end_plane=0,101
 #----------------------------------------------------------------------------------
 #.........................2. IMPORT IMAGES , LABEL, MEASURE ......................
 #------------------------------------------------------------------------------------
@@ -25,7 +25,7 @@ def create_binary_stack(dir3V, start_plane,end_plane):
     """
     imports images from given 3V directory
     """
-    imagePath = glob.glob( dir3V + 'fin\\*.tif')[start_plane:end_plane]
+    imagePath = glob.glob( dir3V + 'fin/*.tif')[start_plane:end_plane]
     imgstack_neg = np.array( [np.array(Image.open(img).convert('L'), 'uint8') for img in imagePath])
     imgstack=np.logical_not(imgstack_neg).astype(int)  #May not always be necessary to invert!
     return imgstack
@@ -37,7 +37,7 @@ def compress_by_skipping(skip):
         junk=junk/skip
         dz*=skip
         nplanes=imgstack.shape[0]
-        dirResults= dir3V+'skip_%d_results\\'%skip
+        dirResults= dir3V+'skip_%d_results/'%skip
 def create_morph_comp(imgstack):
     """
     a 3d Labelled array of image stack. Named for the morphological components function in mathematica. In each plane, every object gets a unique label, labelled from 1 upwards. The background is labelled 0.
@@ -63,10 +63,10 @@ def create_properties_table(MC):
     return props
     #return temp.shape
 
-dir3V=md.find_3V_data(whichdata); # find the relevant data based on the timepoint desired
-pxsize, dz=np.genfromtxt( dir3V+'pxsize.csv', delimiter=',')[1] #import voxel size
-junk=pd.read_csv( dir3V+'junkslices.csv', header=None).to_numpy().T[0]-start_plane #which slices are broken
-dirResults= dir3V+f'results_{start_plane}_{end_plane}\\' #Create subfolder (if it doesnt already exist!)
+parent_dir='/Users/user/Dropbox (The University of Manchester)/fibril-tracking/toy-data/'; # find the relevant data based on the timepoint desired
+pxsize, dz=np.genfromtxt( parent_dir+'pxsize.csv', delimiter=',')[1] #import voxel size
+junk=pd.read_csv( parent_dir+'junkslices.csv', header=None).to_numpy().T[0]-start_plane #which slices are broken
+dirResults= parent_dir+f'results_{start_plane}_{end_plane}/' #Create subfolder (if it doesnt already exist!)
 md.create_Directory(dirResults)
 
 if fromscratch:
@@ -145,7 +145,7 @@ def fibril_mapping(a,b,c, MC, FR_local, skip=1, reduction=0, rAnge=lastplane_tom
     """
     start_time=time_s()
     nfibs=FR_local.shape[0]
-    with open(dirResults+r'\fibtrack_status_update.csv', 'a') as status_update:
+    with open(dirResults+'fibtrack_status_update.csv', 'a') as status_update:
         status_update.write('\ntime '+md.t_d_stamp()+'\nJunk slices,'+str(junk)+"\npID,nfibs,time since mapping began")
 
     for pID in range (lastplane_tomap(junk)):
@@ -192,7 +192,7 @@ def fibril_mapping(a,b,c, MC, FR_local, skip=1, reduction=0, rAnge=lastplane_tom
         nfibs+=new_objects.size
 
         # save/export stuff
-        with open(dirResults+r'\fibtrack_status_update.csv', 'a') as status_update:
+        with open(dirResults+r'fibtrack_status_update.csv', 'a') as status_update:
             status_update.write('\n'+','.join(map(str,[pID,nfibs,time_s()-start_time])))
         np.save(dirResults+'fib_rec', FR_local)
     return FR_local
@@ -220,7 +220,6 @@ a,b,c=1,1,1
 FR_core=initialise_fibril_record(MC)
 FR_core=fibril_mapping(a, b, c, MC,FR_core)
 FR_core=trim_fib_rec(FR_core, frac=0.9)
-np.save(dirResults+f'labeled_volume', FR_local[longfibs])
 
 md.beep()
 #md.animation_inline(MC,np.arange(FR_core.shape[0]), FR_core,0,nplanes)
