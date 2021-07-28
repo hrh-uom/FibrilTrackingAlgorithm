@@ -1,32 +1,33 @@
-import pandas as pd
-import pyvista as pv
 import numpy as np
+import pandas as pd
 from matplotlib.colors import ListedColormap
 import customFunctions as md
 import glob
+import os
+
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 #----------------------------------------------------------------------------
 #.....................................USER INPUT.............................
 #-------------------------------------------------------------------------------
 
-whichdata, start_plane, end_plane=0, 10, 25
+start_plane, end_plane= 0, 101
 
 #----------------------------------------------------------------------------
 #....................LOAD DATA FROM FIBRIL MAPPING....................
 #------------------------------------------------------------------------------
-
-dir3V=md.find_3V_data(whichdata); # find the relevant data based on the timepoint desired
-junk=pd.read_csv( dir3V+'junkslices.csv', header=None).to_numpy().T[0]-start_plane #which slices are broken
-pxsize, dz=np.genfromtxt( dir3V+'pxsize.csv', delimiter=',')[1] #import voxel size
-dirResults= dir3V+f'results_{start_plane}_{end_plane}\\'
-MC=np.load(dirResults+"morphComp.npy")
-props=np.load(dirResults+"props.npy")
+parent_dir='/Users/user/Dropbox (The University of Manchester)/fibril-tracking/toy-data/'
+dir3V=parent_dir+'fin/'# find the relevant data based on the timepoint desired
+junk=pd.read_csv( parent_dir+'junkslices.csv', header=None).to_numpy().T[0]-start_plane #which slices are broken
+pxsize, dz=np.genfromtxt( parent_dir+'pxsize.csv', delimiter=',')[1] #import voxel size
+dirResults= parent_dir+f'results_{start_plane}_{end_plane}/'
+MC=np.load(dirResults+'morphComp.npy')
+props=np.load(dirResults+'props.npy')
 nplanes, npix, _=MC.shape
 
-
 try:
-    path=glob.glob( dirResults + 'fib_rec_trim_*')[0];
+    path=glob.glob( dirResults + 'fib_rec_trim*')[0];
     FR=np.load(path) #original, import fibril record
 except:
     print("Error, no fibrec found")
@@ -37,41 +38,32 @@ try:
 except:
     print("Error, no labelled volume found")
 
-FR.shape
-np.unique(volume)
 
 nfibs=FR.shape[0]
 volume[tuple(junk[junk<=nplanes])]=np.nan #sets junk planes to nan
 volume=np.delete(volume,junk[junk<=nplanes], axis=0) #deletes junk planes
 
-#%%
+minivol=volume[:, 300:350, 300:350]#subsection
+minivol=volume
+#%%----------------------------------------------------------------------------
+#...................VOLUME RENDERING ...................
+#------------------------------------------------------------------------------
 
-trackedvol=volume.copy()
-trackedvol[trackedvol==0]=np.nan #deletes untracked fibrils
+#plotting
+fig = plt.figure(figsize=(8,20))
+ax = Axes3D(fig)
 
+whichfibs=np.unique(minivol)[np.unique(minivol)>0]
 
-tracked_vol = pv.wrap(trackedvol.T)
-tracked_vol.spacing = ( pxsize, pxsize, 10*dz)  # These are the cell sizes along each axis
+for i in whichfibs:
+    minivol_coords=np.argwhere(minivol==i)
+    # print(minivol_coords)
+    ax.scatter(pxsize*minivol_coords[:,1], pxsize*minivol_coords[:,2], dz*minivol_coords[:,0], marker=',')
 
-
-untrackedvol=volume.copy()+1
-untrackedvol[untrackedvol>1]=np.nan
-untracked_vol = pv.wrap(untrackedvol.T)
-
-
-untrackedvol.shape
-untracked_vol.spacing = ( pxsize, pxsize, 10*dz)  # These are the cell sizes along each axis
-
-p = pv.Plotter(border=True)
-
-my_cmap=np.full((nfibs,4),1)
-my_cmap[:,:-1] = np.random.rand(nfibs,3)
-#my_cmap[:,:-1] = [1,0,0]
-grey = np.array([189/256, 189/256, 189/256, 1])
-blue = np.array([12/256, 238/256, 246/256, 1])
-
-
-p.add_volume(untracked_vol,cmap=ListedColormap(my_cmap), show_scalar_bar =False)
-#p.add_volume(untracked_vol,show_scalar_bar =False, cmap=ListedColormap(blue),shade =True)
-p.camera_position = [1,1,1]
-p.show()
+proportions=(pxsize*minivol.shape[1],pxsize*minivol.shape[2],dz*minivol.shape[0])
+ax.set_box_aspect(proportions)  # aspect ratio is 1:1:1 in data space
+ax.view_init(elev=30, azim=225)
+ax.set_xlabel('x (nm)');ax.set_zlabel('z (nm)');ax.set_ylabel('y (nm)')
+dirResults
+plt.savefig(dirResults+'3d-render');plt.show()
+os.system('say "fuck this, im done."')
