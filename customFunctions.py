@@ -22,25 +22,6 @@ def create_Directory(directory):
     """
     if not os.path.exists(directory):
         os.makedirs(directory)
-def find_3V_data(whichdata=0):
-    """
-    finds relevant directory for three view based on choice of timepoint.
-    options 9am: 9, 9.15, 9.100
-    options 7pm: 19, 19.100
-    """
-    if whichdata==9:
-        dir3View = 'D:\\3View\\9am-achilles-fshx\\7.5um_crop_2\\'
-    elif whichdata==19:
-        dir3View = 'D:\\3View\\7pmAchx700\\7-5um\\'
-    elif whichdata==19.100: #dummyset1!!
-        dir3View='D:\\3View\\7pmAchx700\\7-5um\\dummy_0_100\\'
-    elif whichdata==9.15: #dummyset1!!
-        dir3View='D:\\3View\\9am-achilles-fshx\\7.5um_crop_2\\dummy_110_124\\'
-    elif whichdata==9.100:
-        dir3View='D:\\3View\\9am-achilles-fshx\\7.5um_crop_2\\dummy_100_200\\'
-    else:
-        dir3View='C:\\Users\\t97721hr\\Dropbox (The University of Manchester)\\Fibril Tracking Algorithm\\toy_data\\'
-    return dir3View
 
 #----------------TIMING--------------------
 def t_d_stamp():
@@ -85,7 +66,7 @@ def label_volume(morphComp,fib_group,fib_rec,endplane, startplane=0):
  return labels;
 def create_animation(morphComp,fib_group, fib_rec, startplane, endplane, dt, fig_size, colourful=True):
     """
-    Export mapping animation
+    Create mapping animation object
     """
     nplanes=morphComp.shape[0]
     if endplane==0:
@@ -117,6 +98,7 @@ def animation_inline(morphComp,fib_group, fib_rec, startplane=0, endplane=0, dt=
     """
     ani=create_animation(morphComp,fib_group, fib_rec, startplane, endplane, dt, figsize)
     return HTML(ani.to_html5_video())
+    
 def red_objects_1_plane(obj_group, pID):
  """
  Please feed object numbers (inplane) not fibril numbers

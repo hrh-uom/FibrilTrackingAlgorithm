@@ -43,11 +43,10 @@ def load_FTA_data(DSN):
         return  e_c, MFDs, areas
 e_c, MFDs, areas=load_FTA_data(0)
 
-
 #Criticalstrain
 fig, ax1 = plt.subplots( )
-n, bins, patches = ax1.hist(100*e_c, 50, density=False, facecolor='g', alpha=0.75)
-ax1.set_xlabel('Critical strain (%)')
+n, bins, patches = ax1.hist(100*e_c, 50, density=False, weights=areas, facecolor='g', alpha=0.75)
+ax1.set_xlabel('Area weighted critical strain (%)')
 ax1.set_ylabel('Number')
 plt.savefig(dir_output+'/critStrain')
 plt.show()
@@ -58,7 +57,6 @@ plt.show()
 #........................... CHOOSE STRAIN CONDITIONS.....................
 #------------------------------------------------------------------------
 max_strain=6 /100 #Percent
-
 
 def e_t(c1, c2, c3, c4, t):
     """
@@ -121,10 +119,20 @@ plt.show()
 #------------------------------------------------------------------------
 e_lin=np.linspace(0.0,max_strain,101)  #global strain values
 #
-# sig_f=0.04*1000
-# sig_f=0.0000139
-# sig_f=543.974 #MPA OUTPUT FROM BENS ANALYSIS
-# # sig_f=100
+# nu=0.04*1000
+# nu=0.0000139
+def nu(p_dot_alpha=15.55020565796672, A_f=38965893.12, mu=1.0016e-3):
+    """
+    The constant term to nultiply the strain rate function
+    by in order to get the viscous stress contribution
+    Pulled from fluid model
+    used like,
+    sig_f = mu * d(epsilon)/dt
+    """
+    return (p_dot_alpha + 2 * mu *A_f)/A_f
+
+nu=543.974 #MPA OUTPUT FROM BENS ANALYSIS
+# # nu=100
 
 def find_timepoints_when_singular(timepoints):
     pad = len(max(timepoints, key=len))
@@ -142,10 +150,8 @@ if np.any(np.array([len(xi) for xi in timepoints])==1): #Singular
 def deps_dt(c2, c3, c4, tt):
     return sp.diff(e_t(c1, c2, c3, c4, t),t).subs(t, tt)
 
-delt_sig_load=np.array([sig_f*sp.N(deps_dt(c2, c3, c4, tt) )for tt in timepoints[:,0]])
-delt_sig_unload=np.array([sig_f*sp.N(deps_dt(c2, c3, c4, tt) )for tt in timepoints[:,1]])
-
-
+delt_sig_load=np.array([nu*sp.N(deps_dt(c2, c3, c4, tt) )for tt in timepoints[:,0]])
+delt_sig_unload=np.array([nu*sp.N(deps_dt(c2, c3, c4, tt) )for tt in timepoints[:,1]])
 
 totalstress_loading=vol_frac*sig_s+(1-vol_frac)*delt_sig_load
 totalstress_unloading=vol_frac*sig_s+(1-vol_frac)*delt_sig_unload
@@ -202,7 +208,7 @@ delta_work=load_work-unload_work
 #...........................TEXT FILE RESULTS....................
 #------------------------------------------------------------------------
 headings=['fluid stress (chosen)', 'elastic modulus (Mpa)', 'c1', 'c2', 'c3', 'c4', 'load work per unit vol (kPa)', 'unload work per unit vol(kPa)', 'delta work /unit vol(kPa)', 'fractional work']
-valuessymb=np.array([sig_f,elasticmodulus,c1, c2, c3, c4, 1000*load_work, 1000*unload_work, 1000*delta_work, delta_work/load_work] )
+valuessymb=np.array([nu,elasticmodulus,c1, c2, c3, c4, 1000*load_work, 1000*unload_work, 1000*delta_work, delta_work/load_work] )
 
 import csv
 with open(dir_output+'/params.csv', mode='w') as params:
