@@ -15,20 +15,35 @@ plt.style.use('./mystyle.mplstyle')
 #----------------------------------------------------------------------------------
 #...............................1. USER INPUT .................................
 #------------------------------------------------------------------------------------
-fromscratch=False
-skip=1
-start_plane, end_plane=0,101
-#----------------------------------------------------------------------------------
+fromscratch=False;skip=1
+
+local=True;
+if local: #MY PC
+    parent_dir='/Users/user/Dropbox (The University of Manchester)/fibril-tracking/nuts-and-bolts-3view/'; # find the relevant data based on the timepoint desired
+    dir3V='/Users/user/Dropbox (The University of Manchester)/em-images/nuts-and-bolts-3v-data/9am-achilles-fshx-processed'
+else: #ON CSF
+    parent_dir='/mnt/fls01-home01/t97721hr/scratch/nuts-and-bolts/'
+    dir3C='/mnt/fls01-home01/t97721hr/scratch/nuts-and-bolts/three-view'
+
+start_plane, end_plane=0,5
+dirResults= parent_dir+f'results_{start_plane}_{end_plane}/' #Create subfolder (if it doesnt already exist!)
+md.create_Directory(dirResults)
+
+#%%----------------------------------------------------------------------------------
 #.........................2. IMPORT IMAGES , LABEL, MEASURE ......................
 #------------------------------------------------------------------------------------
-def create_binary_stack(dir3V, start_plane,end_plane):
+def create_binary_stack(dir3V, start_plane,end_plane, whitefibrils=True):
     """
     imports images from given 3V directory
+    has the option to switch based on whether the fibrils are black on a white background or vice versa
     """
-    imagePath = glob.glob( dir3V + 'fin/*.tif')[start_plane:end_plane]
-    imgstack_neg = np.array( [np.array(Image.open(img).convert('L'), 'uint8') for img in imagePath])
-    imgstack=np.logical_not(imgstack_neg).astype(int)  #May not always be necessary to invert!
-    return imgstack
+    imagePath = glob.glob(dir3V+'*.tiff')[start_plane:end_plane]
+    imgstack = np.array( [np.array(Image.open(img).convert('L'), 'int') for img in imagePath])/255
+    if whitefibrils==True:
+        return imgstack
+    else:
+        return np.logical_not(imgstack).astype(int)  #May not always be necessary to invert!
+
 def compress_by_skipping(skip):
     global imgstack
     if skip>1: #Resize array and renumber junk slices if skipping slices
@@ -40,7 +55,8 @@ def compress_by_skipping(skip):
         dirResults= dir3V+'skip_%d_results/'%skip
 def create_morph_comp(imgstack):
     """
-    a 3d Labelled array of image stack. Named for the morphological components function in mathematica. In each plane, every object gets a unique label, labelled from 1 upwards. The background is labelled 0.
+    a 3d Labelled array of image stack. Named for the morphological components function in mathematica.
+    In each plane, every object gets a unique label, labelled from 1 upwards. The background is labelled 0.
     """
     MC=np.zeros([nplanes, npix, npix], dtype=int) #initialising array for morph comp
     for i in range(nplanes):
@@ -49,11 +65,14 @@ def create_morph_comp(imgstack):
     return MC
 def create_properties_table(MC):
     """
-    Setting up table of properties for each plane (props) props stores (pID, objectID, property). it is the length of the max number of objects in any plane, and populated with zeroes.
+    Setting up table of properties for each plane (props) props stores (pID, objectID, property).
+    it is the length of the max number of objects in any plane, and populated with zeroes.
+    Everything is measured in pixels
     """
     props_ofI='centroid','orientation','area','eccentricity' # these properties are the ones to be calculated using skimage.measure
     props=np.empty((nplanes, np.max(MC), len(props_ofI)+2)) #the +2 is because centroid splits into 2, and also to leave space for the feret diameter, calculated by a custom script.
     for pID in range(nplanes):
+        print(f'Properties table plane {pID}')
         rprops=pd.DataFrame(regionprops_table(MC[pID], properties=props_ofI)).to_numpy() #regionprops from skimage.measure
         #print (temp.shape)
         nobj=rprops.shape[0]; # nobjects in plane
@@ -63,11 +82,10 @@ def create_properties_table(MC):
     return props
     #return temp.shape
 
-parent_dir='/Users/user/Dropbox (The University of Manchester)/fibril-tracking/toy-data/'; # find the relevant data based on the timepoint desired
+
 pxsize, dz=np.genfromtxt( parent_dir+'pxsize.csv', delimiter=',')[1] #import voxel size
 junk=pd.read_csv( parent_dir+'junkslices.csv', header=None).to_numpy().T[0]-start_plane #which slices are broken
-dirResults= parent_dir+f'results_{start_plane}_{end_plane}/' #Create subfolder (if it doesnt already exist!)
-md.create_Directory(dirResults)
+
 
 if fromscratch:
     imgstack=create_binary_stack(dir3V, start_plane,end_plane) #import images and create binary array
@@ -219,11 +237,18 @@ a,b,c=1,1,1
 
 FR_core=initialise_fibril_record(MC)
 FR_core=fibril_mapping(a, b, c, MC,FR_core)
-FR_core=trim_fib_rec(FR_core, frac=0.9)
-
-md.beep()
-#md.animation_inline(MC,np.arange(FR_core.shape[0]), FR_core,0,nplanes)
+FR_core=trim_fib_rec(FR_core, frac=0.1)
 
 #%%---------------------------------------------------------------------------
 #.................................SANDBOX....................................
 #-------------------------------------------------------------------------------
+dirResults
+FR_core=np.load(dirResults+"/fib_rec.npy")
+
+i=0
+FR_core
+np.unique(FR_core[610])
+
+
+
+help(np.load)
