@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sympy.solvers import solve
 import sympy as sp
-from glob import glob
+import glob
 import os
 import customFunctions as md
 plt.style.use('./mystyle.mplstyle')
@@ -10,17 +10,21 @@ plt.style.use('./mystyle.mplstyle')
 #----------------------------------------------------------------------------
 #........................... ELASTIC LOADING...............................
 #------------------------------------------------------------------------
+start_plane, end_plane=0,695
+desired_length=1000 #nm
 
-directories=glob(os.path.abspath('../toy*/results_0_101'))
-dir_output=glob(os.path.abspath('../toy*/results_0_101/mech*'))[0]
+
+if ('Dropbox' in os.getcwd()):#MY PC
+    dirResults=f'/Users/user/Dropbox (The University of Manchester)/fibril-tracking/nuts-and-bolts/csf-output/results_{start_plane}_{end_plane}'
+else:#ON CSF
+    dirResults=f'/mnt/fls01-home01/t97721hr/scratch/nuts-and-bolts/results_{start_plane}_{end_plane}'
 
 DSN=0 #dataset number
+directories=[dirResults] #Temp
+dir_output=dirResults
 
 elasticmodulus = 350  #MPa VanDerRijt2006
 vol_frac=0.706  #from Ben - fibril fraction in the image
-
-
-#%%%%
 
 def load_FTA_data(DSN):
     """
@@ -28,27 +32,28 @@ def load_FTA_data(DSN):
     """
     d=directories[DSN] ; err=0
     try:
-        e_c=np.load(f'{d}/scaledlengths.npy')-1
+        e_c=np.load(glob.glob(dirResults+f"/scaledlengths_{desired_length}*.npy")[0])-1
     except:
         print("No scaledlengths file found"); err=1
     try:
-        MFDs=np.load(f'{d}/fib_MFDs.npy')
+        MFDs=np.load(glob.glob(dirResults+f"/fib_MFDs_{desired_length}*.npy")[0])
     except:
         print("No MFD file found") ; err=1
     try:
-        areas=np.load(f'{d}/fib_MFDs.npy')
+        areas=np.load(glob.glob(dirResults+f"/area_{desired_length}*.npy")[0])
     except:
         print("No areas file found") ; err=1
     if err==0:
         return  e_c, MFDs, areas
 e_c, MFDs, areas=load_FTA_data(0)
 
+
+#%%
 #Criticalstrain
 fig, ax1 = plt.subplots( )
 n, bins, patches = ax1.hist(100*e_c, 50, density=False, weights=areas, facecolor='g', alpha=0.75)
 ax1.set_xlabel('Area weighted critical strain (%)')
 ax1.set_ylabel('Number')
-plt.savefig(dir_output+'/critStrain')
 plt.show()
 
 
@@ -211,7 +216,7 @@ headings=['fluid stress (chosen)', 'elastic modulus (Mpa)', 'c1', 'c2', 'c3', 'c
 valuessymb=np.array([nu,elasticmodulus,c1, c2, c3, c4, 1000*load_work, 1000*unload_work, 1000*delta_work, delta_work/load_work] )
 
 import csv
-with open(dir_output+'/params.csv', mode='w') as params:
+with open(dir_output+'/mechloading_params.csv', mode='w') as params:
     params = csv.writer(params, delimiter=',')
     params.writerow(headings)
     params.writerow(valuessymb)

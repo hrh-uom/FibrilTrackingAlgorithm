@@ -4,67 +4,56 @@ import customFunctions as md
 from scipy import stats
 import glob
 import os
+import pandas as pd
 plt.style.use('./mystyle.mplstyle')
 
 #----------------------------------------------------------------------------
 #.....................................USER INPUT.............................
 #-------------------------------------------------------------------------------
-whichdata=0
-desired_length=0.9
-start_plane,end_plane=0,101
-dirResults=os.path.dirname(os.getcwd())+f'/toy-data/results_{start_plane}_{end_plane}'
+desired_length=1000 #nm
+start_plane,end_plane=0,695
+
+if ('Dropbox' in os.getcwd()):#MY PC
+    dirResults=f'/Users/user/Dropbox (The University of Manchester)/fibril-tracking/nuts-and-bolts/csf-output/results_0_695/'
+    dir3V='/Users/user/Dropbox (The University of Manchester)/em-images/nuts-and-bolts-3v-data/9am-achilles-fshx-processed/'
+else:#ON CSF
+    dirResults=f'/mnt/fls01-home01/t97721hr/scratch/nuts-and-bolts/results_{start_plane}_{end_plane}/'
+    dir3V='/mnt/fls01-home01/t97721hr/scratch/nuts-and-bolts/three-view/'
 
 #----------------------------------------------------------------------------
 #....................IMPORT DATA FROM FIBRIL MAPPING....................
 #------------------------------------------------------------------------------
+
+import importlib
+importlib.reload(md);
+
+
 try:
-    fib_rec_0=np.load(dirResults+'/fib_rec_safe.npy') #original, import fibril record
-    morphComp=np.load(dirResults+'/morphComp.npy')
-    props=np.load(dirResults+'/props.npy')
+    fib_rec_0=np.load(dirResults+'/fib_rec.npy') #original, import fibril record
+    morphComp=np.load(dirResults+'morphComp.npy')
+    props=np.load(dirResults+'props.npy')
 except:
     print("Error, no fibrec, morphComp, props found")
-nfibs_0,nplanes=fib_rec_0.shape
-npix=morphComp.shape[2]
-pxsize, dz=np.genfromtxt( os.path.dirname(dirResults)+'/pxsize.csv', delimiter=',')[1] #import voxel size
-junk=np.nonzero(np.all(fib_rec_0==-1, axis=0))[0]
 
-#----------------------------------------------------------------------------
-#....................SELECTING FIBRILS OF A CERTAIN LENGTH....................
-#-------------------------------------------------------------------------------
-#Q: How long are all the fibrils in the original fibril rec?
-nexist_0=np.zeros(nfibs_0, dtype='int')
-for i in range(nfibs_0):
-    nexist_0[i]=np.max(np.nonzero(fib_rec_0[i]>-1))-np.min(np.nonzero(fib_rec_0[i]>-1))+1
-longfibs=np.where(nexist_0>nplanes*desired_length)[0]  #the indices of the long fibirls
-title_=f'Strands: {nfibs_0}, > {desired_length*100:.0f}%: {longfibs.size} $\sim$ {100*longfibs.size/nfibs_0:.0f}%'
+#-~~~~~~~~~~~~MEASURE SHAPE AND SIZE~~~~~~~~~~~~
+nplanes, npix, npix=morphComp.shape
+#Read Metadata File
+meta_frame=pd.read_csv(glob.glob(dir3V+'/*metadata*csv')[0])
+pxsize=meta_frame.pixelsize[0];junk=meta_frame.junkslices; dz=meta_frame.dz[0]
+frac=np.round(desired_length/pxsize)/nplanes
 
-md.my_histogram(100*nexist_0/nplanes,'Number of slices present',title=title_, binwidth=5)
-
-#Erasing fibril record for short fibrils. The only way to map between the two is using longfibs. Reindexing also!
-fib_rec=fib_rec_0[longfibs]
-nexist=nexist_0[longfibs]
-nfibs=longfibs.size
-lengths_scaled=np.zeros(nfibs)  #worm like length / n planes present
-direction_unit_vectors=np.zeros((nfibs, 3))
-
-#Q: how many fibs are we capturing in cross-section?
-meanperplane=np.mean(np.apply_along_axis(np.max, 1, np.reshape(morphComp, (nplanes,npix**2 ))))
-print('fraction captured in cross section', nfibs/meanperplane)
-
-#%%---------------------------------------------------------------------------
-#..............................ANIMATIONS, OPTIONAL....................
-#-------------------------------------------------------------------------------
-# DROPPED
-#md.export_animation(dirResults,"dropped_fibril_inquiry_50to90", morphComp,half_length_fibril_indices,fib_rec_0, dt=1000)
-
-#%% ALL
-
-#md.animation_inline(morphComp,np.arange(nfibs), fib_rec,0,2)
-#md.export_animation(dirResults,"90pc_plus_animation", morphComp,np.arange(nfibs),fib_rec, dt=1000)
-
+#-~~~~~~~~~~~~TRIM IF NEEDED ~~~~~~~~~~~~
+if os.path.isfile(dirResults+f'fib_rec_trim_{frac:.2f}.npy'):
+    print("Loading")
+    fib_rec=np.load(dirResults+f'fib_rec_trim_{frac:.2f}.npy') #original, import fibril record
+else:
+    print("Trimming")
+    fib_rec=md.trim_fib_rec(fib_rec_0, morphComp, dirResults, frac)
+nfibs=fib_rec.shape[0]
 #%%----------------------------------------------------------------------------
 #....................GEOMETRY OF FIBRIL POPULATION....................
 #-------------------------------------------------------------------------------
+
 def fascicleCoord(pID):
     """
     Calculates the mean co-ordinate of all fibrils at slice pID
@@ -73,9 +62,8 @@ def fascicleCoord(pID):
     if objects_in_plane.size!=0: #ignoring junk slices
         coOrds_2D=[]
         for i in objects_in_plane:
-            coOrds_2D.append((props[pID, i, 0:2]))
-
-        return np.append(pxsize*np.mean(np.array(coOrds_2D), axis=0), dz*pID)
+            coOrds_2D.append((props[pID, i, 0:2]*pxsize))
+        return np.append(np.mean(np.array(coOrds_2D), axis=0), dz*pID)
 def fibCoords(i):
     """
     calculates the coordinates in 3d real space of a fibril (i).
@@ -119,15 +107,31 @@ for pID in range (nplanes-1):
     if np.all(fascicleCoord(pID))!=None:
         fas_coord_list.append(fascicleCoord(pID))
 fas_len=coOrds_to_length(np.array(fas_coord_list))
+fas_len
 
 #Calculate length of each fibril
+#Q: How long are all the fibrils in the fibril rec?
+nexist=np.zeros(nfibs, dtype='int')
+for i in range(nfibs):
+    nexist[i]=np.max(np.nonzero(fib_rec[i]>-1))-np.min(np.nonzero(fib_rec[i]>-1))+1
+
+lengths_scaled=np.zeros(nfibs)  #worm like length / n planes present
 for i in range (nfibs):
     lengths_scaled[i]=coOrds_to_length(fibCoords(i))
 lengths_scaled*=nplanes/(fas_len*nexist)
-
 #How long are the long fibrils?
-md.my_histogram((lengths_scaled-1)*100, 'Critical Strain (%)', title='', binwidth=.5,filename=dirResults+'/CS_dist.png')
-np.save(dirResults+'/scaledlengths', lengths_scaled)
+md.my_histogram((lengths_scaled-1)*100, 'Critical Strain (%)', title=f'Critical Strain. Fibril strands appear in {desired_length/1000}um of z distance', binwidth=.5,filename=dirResults+f'/CS_dist_{desired_length}nm_{frac:.2f}.png')
+np.save(dirResults+f'/scaledlengths_{desired_length}nm_{frac:.2f}', lengths_scaled)
+
+#%% WHERE IS THE FASCICLE GOING
+
+fas_arr=np.array(fas_coord_list)
+fig, ax=plt.subplots()
+ax.plot(fas_arr[:,0]/pxsize, fas_arr[:,1]/pxsize)
+ax.set_aspect(1)
+ax.set_xlim(400,600);ax.set_ylim(400, 600);plt.show()
+
+
 
 #%%---------------------------Feret Diameter of each fibril
 
@@ -141,8 +145,8 @@ def fibril_MFD(i, FR): #maps between props and fibrec
     return mean,feret_planewise
 
 fib_MFDs=np.array([fibril_MFD(i, fib_rec)[0] for i in range(nfibs)])
-np.save(dirResults+'/fib_MFDs', fib_MFDs)
-md.my_histogram(fib_MFDs, 'Minimum Feret Diameter (nm)', 'Minimum Feret Diameter distribution', filename=dirResults+'/MFD_dist.png')
+np.save(dirResults+f'/fib_MFDs_{desired_length}nm_{frac:.2f}', fib_MFDs)
+md.my_histogram(fib_MFDs, 'Minimum Feret Diameter (nm)', 'Minimum Feret Diameter distribution', filename=dirResults+f'/MFD_dist_{desired_length}nm_{frac:.2f}.png')
 
 #%% ------------------------Area of each fibrils
 
@@ -158,14 +162,16 @@ def fibril_area(i):
     mean = np.mean(area_planewise)
     return mean, area_planewise
 fibrilArea=np.array([fibril_area(i)[0] for i in range(nfibs)])
-np.save(dirResults+'/area.npy', fibrilArea)
+np.save(dirResults+f'/area_{desired_length}nm_{frac:.2f}.npy', fibrilArea)
 md.my_histogram(fibrilArea/100, 'Area ($10^3$ nm$^2$)', 'Cross Sectional Area of tracked fibrils', binwidth=50)
 #%%----------------Length vs cross secitonal Area
-
+fib_MFDs
 plt.plot(lengths_scaled,fibrilArea/10**6, '.r')
 plt.xlabel('Normalised lengths')
 plt.ylabel('Cross Sectional Area (um$^2$)')
 plt.show()
+
+#to do animate long fibrils
 
 #%%----------------------------------------------------------------------------
 #....................TESTING FOR STATISTICAL SIGNIFICANCE ....................
@@ -185,14 +191,43 @@ rel_tracked_FD=tracked_FD[(tracked_FD>lower) & (tracked_FD<upper)]
 kstest=stats.ks_2samp(rel_untracked_FD, rel_tracked_FD)
 result="reject" if kstest[1]<0.05 else "accept"
 
-md.my_histogram([rel_tracked_FD, rel_untracked_FD],'Feret diameter (nm)', binwidth=50,cols=['red', 'lime'], dens=True, title=f'$H_0$, these two samples come from the same distribution. p={kstest[1]:.2e}: {result}\n Distribution limited to ({lower}, {upper}) nm', labels=['Tracked fibrils FD', 'Untracked segments FD'],filename=dirResults+'/statistical_significance_CS_dist.png')
+md.my_histogram([rel_tracked_FD, rel_untracked_FD],'Feret diameter (nm)', binwidth=50,cols=['red', 'lime'], dens=True, title=f'$H_0$, these two samples come from the same distribution. p={kstest[1]:.2e}: {result}\n Distribution limited to ({lower}, {upper}) nm', labels=['Tracked fibrils FD', 'Untracked segments FD'],filename=dirResults+f'/statistical_significance_CS_dist_{desired_length}nm_{frac:.2f}.png', leg=True)
 
-
+#choose one slice
 #%%----------------------------------------------------------------------------
 #....................DROPPED FIBRIL INQUIRIES....................
 #-------------------------------------------------------------------------------
+#Q: read original fibril record, before chopping.
+
+try:
+    fib_rec_0=np.load(dirResults+'/fib_rec.npy') #original, import fibril record
+except:
+    print ('File not Found')
+
+nfibs_0,nplanes=fib_rec_0.shape
+
+#Q: how many fibs are we capturing in cross-section?
+meanperplane=np.mean(np.apply_along_axis(np.max, 1, np.reshape(morphComp, (nplanes,npix**2 ))))
+n=0
+for i in range(nplanes):
+    n+=fib_rec[i][fib_rec[i]>-1].size
+
+
+print('fraction captured in cross section', (n/nplanes)/meanperplane)
+
+#Q: How long are all the fibrils in the original fibril rec?
+nexist_0=np.zeros(nfibs_0, dtype='int')
+for i in range(nfibs_0):
+    nexist_0[i]=np.max(np.nonzero(fib_rec_0[i]>-1))-np.min(np.nonzero(fib_rec_0[i]>-1))+1
+
+title_=f'Strands: {nfibs_0}, > {desired_length}nm in z: {nfibs} $\sim$ {100*nfibs/nfibs_0:.0f}%'
+
+md.my_histogram(100*nexist_0/nplanes,'Percentage of slices present',title=title_, binwidth=5)
+
+##%%---OLD STUFF BELOW ----------------------------------------------------------------------------
+
 #Q: which ones are nearly full length but not quite 6/11/2020
-half_length_fibril_indices=np.nonzero((0.5*nplanes<nexist_0)&(nexist_0<=desired_length*nplanes))[0]
+half_length_fibril_indices=np.nonzero((0.5*nplanes<nexist_0)&(nexist_0<=frac*nplanes))[0]
 def plot_half_length():
     plt.plot(np.count_nonzero(fib_rec_0[half_length_fibril_indices]>-1, axis=0), '.-b')
     plt.xlabel("Plane (/100)")
@@ -202,7 +237,7 @@ def plot_half_length():
     plt.tick_params(axis="x", bottom=True, top=True, labelbottom=True, labeltop=True)
     plt.title("Examining the fibrils which appear in 50-90% of all planes")
     plt.show()
-plot_half_length()
+# plot_half_length()
 ##%% Q: where are the fibril ends in the half length group?
 def plot_fib_ends_half_length():
     fibril_ends=[]
@@ -212,18 +247,18 @@ def plot_fib_ends_half_length():
     fibril_ends=np.array(fibril_ends)
     N=fibril_ends.size
     fibril_ends=fibril_ends[fibril_ends>0]
-    fibril_ends=fibril_ends[fibril_ends<100]
-    n, bins, patches = plt.hist(fibril_ends, nplanes, density=False, facecolor='g', alpha=0.75)
-    plt.xlabel("Plane")
-    plt.ylabel('Number')
-    unique, counts = np.unique(fibril_ends, return_counts=True)
-    plt.ylim(0,max(counts))
-    plt.vlines(junk+0.5, 0, 1000)
-    plt.title("Location of Fibril ends, 50% and longer segments excluding 0 and 100")
-    plt.grid(True)
-    plt.tick_params(axis="x", bottom=True, top=True, labelbottom=True, labeltop=True)
-    plt.show()
-    print("%i out of %i are 0 and 100, thats %lf percent" % (N-fibril_ends.size,N,100* (N-fibril_ends.size)/N))
+    fibril_ends=fibril_ends[fibril_ends<nplanes]
+    counts=0; unique, counts = np.unique(fibril_ends, return_counts=True)
+    if np.any (counts): #In prototyping, sometimes the fibril ends group is empty.
+        n, bins, patches = plt.hist(fibril_ends, nplanes, density=False, facecolor='g', alpha=0.75)
+        plt.ylim(0,max(counts))
+        plt.xlabel("Plane");plt.ylabel('Number')
+        plt.vlines(junk+0.5, 0, 1000)
+        plt.title("Location of Fibril ends, 50% and longer segments excluding 0 and 100")
+        plt.grid(True)
+        plt.tick_params(axis="x", bottom=True, top=True, labelbottom=True, labeltop=True)
+        plt.show()
+        print("%i out of %i are 0 and 100, thats %lf percent" % (N-fibril_ends.size,N,100* (N-fibril_ends.size)/N))
 plot_fib_ends_half_length()
 
 ##%% Question: Where are the fibril ends (ALL)
@@ -249,7 +284,7 @@ def plot_fib_tops_bottoms():
     plt.tick_params(axis="x", bottom=True, top=True, labelbottom=True, labeltop=True)
     plt.legend()
     plt.show()
-plot_fib_tops_bottoms()
+# plot_fib_tops_bottoms()
 #%% is there a correlation between size and nplanes in which the strand exists
 def plot_strand_size_vs_MFD():
     fib_MFDs_0=np.array([fibril_MFD(i, fib_rec_0)[0] for i in range(nfibs_0)])
@@ -264,4 +299,4 @@ def plot_strand_size_vs_MFD():
     plt.tick_params(axis="x", bottom=True, top=True, labelbottom=True, labeltop=True)
     plt.ylabel("Number of planes in which strand exists")
     plt.show()
-plot_strand_size_vs_MFD()
+# plot_strand_size_vs_MFD()
