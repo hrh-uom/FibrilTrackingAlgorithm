@@ -59,6 +59,7 @@ def feret_diameters_2d(labelled_2d_image):
     fds=zeros(nobj)
     for oID in range (nobj):#    oID= object ID. Object in plane, labelled in image
         points=argwhere(labelled_2d_image==oID+1); #the +1 is because the labels start at 1, but python starts at 0!
+        # print(oID)
         hull=ConvexHull(points).points
         fds[oID]=feret_diameter_from_hull(hull);
     return fds

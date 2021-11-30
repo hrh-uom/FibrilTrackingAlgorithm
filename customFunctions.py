@@ -4,11 +4,11 @@ from math import sqrt
 from PIL import Image
 import glob
 from matplotlib import animation, rc, colors
-from IPython.display import HTML
 import matplotlib.image as mpimg
 import matplotlib.cm as cm
 from skimage.measure import label, regionprops,regionprops_table
 from skimage.color import label2rgb
+from IPython.display import HTML
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from  datetime import datetime as dt
@@ -55,50 +55,113 @@ def viewwindow(fID,pID, cofI,size, npix, nplanes, morphComp): #View window of se
     ax.add_patch(rect)
     plt.show()
 
+#-------------TRIM FIBRIL RECORD-------------
+
+def trim_fib_rec(FR_local, MC, dirResults,frac=0.9):
+    """
+    Trims fibril record to fibrils which are less than some fraction of the total number of planes
+    """
+    print(f'trimming fibril record to {frac}')
+    #Q: How long are all the fibrils in the original fibril rec?
+    nfibs, nplanes=FR_local.shape
+    nexist=np.zeros(nfibs, dtype='int')
+    for i in range(nfibs):
+        if i in np.arange(0, nfibs)[0::1000]:
+            print (f"Fibril {i} of {nfibs}")
+        nexist[i]=np.max(np.nonzero(FR_local[i]>-1))-np.min(np.nonzero(FR_local[i]>-1))+1
+    longfibs=np.where(nexist>nplanes*frac)[0]  #the indices of the long fibirls
+    #Erasing fibril record for short fibrils. The only way to map between the two is using longfibs. Reindexing also!
+
+    np.save(dirResults+f'fib_rec_trim_{frac:.2f}', FR_local[longfibs])
+    labels=label_volume(MC, np.arange(longfibs.size),FR_local[longfibs], nplanes )
+    np.save(dirResults+f'labelled_vol_{frac:.2f}', labels)
+    return FR_local[longfibs]
+
 #------------------ANIMATION AND VISUALISATION-----------------------------#
 def label_volume(morphComp,fib_group,fib_rec,endplane, startplane=0):
- labels=np.where(morphComp==0, -1, 0) #turn all fibs to 0, keeping background=-1
- for pID in range(startplane, endplane):
-     for i in range (len(fib_group)):
+    """
+    Returns array where each seperate fibril is labelled with a number.
+    Same dims as MC input ie nx ny nplanes
+    """
+    print("Labelling volume")
+    labels=np.where(morphComp[startplane:endplane]==0, -1, 0).astype('int16') #turn all fibs to 0, keeping background=-1
+    j=0
+    for pID in range(startplane, endplane):
+        print(f"Labelling volume {pID}")
+        for i in range (len(fib_group)):
          if fib_rec[fib_group[i], pID]!=-1:
              value=fib_group[i]+1;
-             labels[pID]=np.where(morphComp[pID]==fib_rec[fib_group[i], pID]+1, value, labels[pID])
- return labels;
-def create_animation(morphComp,fib_group, fib_rec, startplane, endplane, dt, fig_size, colourful=True):
+             labels[j]=np.where(morphComp[pID]==fib_rec[fib_group[i], pID]+1, value, labels[j])
+        j+=1
+    return labels
+
+def create_animation(fib_group, labels, startplane, endplane, dt, fig_size=10, step=1,colourful=True):
     """
     Create mapping animation object
+    ORIGINAL THIS ONE WORKS
     """
-    nplanes=morphComp.shape[0]
+    nplanes=labels.shape[0]
     if endplane==0:
         endplane=nplanes
     fig, ax=plt.subplots(1, 1, figsize=(fig_size,fig_size))
     container = []
-    import scipy.ndimage
-    labels=label_volume(morphComp,fib_group, fib_rec, endplane,startplane)
     color = [tuple(np.random.random(size=3)) for i in range(len(fib_group))] #randomcolourlist
     color.insert(0,(1.,1.,1.)) #makesure other fibrils are white!!
-    rgblabel=label2rgb(labels, bg_label=-1, colors=color);
-    for pID in range(startplane, endplane):
-        im=ax.imshow(rgblabel[pID], animated=True)
+    print("Label2RGB")
+    rgblabel=label2rgb(labels[startplane:endplane:step, :, :], bg_label=-1, colors=color);
+    frameID=0
+    for pID in range(startplane, endplane, step):
+        print(f"animating plane {pID}")
+
+        im=ax.imshow(rgblabel[frameID], animated=True)
         plot_title = ax.text(0.5,1.05,'Plane %d of %d' % (pID, nplanes),
                  size=plt.rcParams["axes.titlesize"],
                  ha="center", transform=ax.transAxes, )
         container.append([im, plot_title])
+        frameID+=1;
     ani = animation.ArtistAnimation(fig, container, interval=dt, blit=True)
     plt.close();
     return ani
     #ani.save(resultsDir+title+'.mp4')
 
-def export_animation(resultsDir, title, morphComp,fib_group, fib_rec, startplane=0, endplane=0, dt=500, figsize=20):
-    ani=create_animation(morphComp,fib_group, fib_rec, startplane, endplane, dt, figsize )
+def create_animation_current(fib_group, labels, startplane, endplane, dt, fig_size=10, step=1,colourful=True):
+    """
+    Create mapping animation object
+    this one doesnt work. Something to do with moving the RGB label line
+    """
+    nplanes=labels.shape[0]
+    if endplane==0:
+        endplane=nplanes
+    fig, ax=plt.subplots(1, 1, figsize=(fig_size,fig_size))
+    container = []
+    color = [tuple(np.random.random(size=3)) for i in range(len(fib_group))] #randomcolourlist
+    color.insert(0,(1.,1.,1.)) #makesure other fibrils are white!!
+    print("Label2RGB")
+    frameID=0
+    for pID in range(startplane, endplane, step):
+        print(f"animating plane {pID}")
+        rgblabel=label2rgb(labels[pID, :, :], bg_label=-1, colors=color);
+        im=ax.imshow(rgblabel, animated=True)
+        plot_title = ax.text(0.5,1.05,'Plane %d of %d' % (pID, nplanes),
+                 size=plt.rcParams["axes.titlesize"],
+                 ha="center", transform=ax.transAxes, )
+        container.append([im, plot_title])
+        frameID+=1;
+    ani = animation.ArtistAnimation(fig, container, interval=dt, blit=True)
+    plt.close();
+    return ani
+    #ani.save(resultsDir+title+'.mp4')
+
+def export_animation(resultsDir,fib_group, labels, title='volumerendering/stepthrough-animation', startplane=0, endplane=0, dt=500, figsize=20,step=1):
+    ani=create_animation(fib_group, labels, startplane, endplane, dt, figsize , step)
     ani.save(resultsDir+title+'.mp4')
-def animation_inline(morphComp,fib_group, fib_rec, startplane=0, endplane=0, dt=500, figsize=10):
+def animation_inline(fib_group, labels, startplane=0, endplane=0, dt=500, figsize=10, step=1):
     """
     Animate a certain group of fibrils, given a specific fibril record
     """
-    ani=create_animation(morphComp,fib_group, fib_rec, startplane, endplane, dt, figsize)
+    ani=create_animation(fib_group, labels, startplane, endplane, dt, figsize, step)
     return HTML(ani.to_html5_video())
-    
+
 def red_objects_1_plane(obj_group, pID):
  """
  Please feed object numbers (inplane) not fibril numbers
@@ -112,7 +175,7 @@ def red_objects_1_plane(obj_group, pID):
  plt.imshow(rgblabel)
 
 #---------------PLOTS-------------------
-def my_histogram(arr,xlabel, dens=False, title=' ', labels=[], cols='g', binwidth=10, xlims=0, filename=0):
+def my_histogram(arr,xlabel, dens=False, title=' ', labels=[], cols='g', binwidth=10, xlims=0, filename=0, leg=False):
     """
     A histogram, with number on the y axis
     """
@@ -129,7 +192,8 @@ def my_histogram(arr,xlabel, dens=False, title=' ', labels=[], cols='g', binwidt
         plt.xlim(xlims)
     plt.title(title)
     plt.grid(True)
-    plt.legend()
+    if leg:
+        plt.legend()
     if filename!=0:
         plt.savefig(filename)
     plt.show()
