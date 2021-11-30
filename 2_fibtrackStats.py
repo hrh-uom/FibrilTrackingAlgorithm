@@ -24,21 +24,18 @@ else:#ON CSF
 #....................IMPORT DATA FROM FIBRIL MAPPING....................
 #------------------------------------------------------------------------------
 
-import importlib
-importlib.reload(md);
-
-
 try:
-    fib_rec_0=np.load(dirResults+'/fib_rec.npy') #original, import fibril record
+    fib_rec_0=np.load(dirResults+'fib_rec.npy') #original, import fibril record
     morphComp=np.load(dirResults+'morphComp.npy')
     props=np.load(dirResults+'props.npy')
 except:
     print("Error, no fibrec, morphComp, props found")
 
+print("Testing")
 #-~~~~~~~~~~~~MEASURE SHAPE AND SIZE~~~~~~~~~~~~
 nplanes, npix, npix=morphComp.shape
 #Read Metadata File
-meta_frame=pd.read_csv(glob.glob(dir3V+'/*metadata*csv')[0])
+meta_frame=pd.read_csv(glob.glob(dir3V+'*metadata*csv')[0])
 pxsize=meta_frame.pixelsize[0];junk=meta_frame.junkslices; dz=meta_frame.dz[0]
 frac=np.round(desired_length/pxsize)/nplanes
 
@@ -50,6 +47,7 @@ else:
     print("Trimming")
     fib_rec=md.trim_fib_rec(fib_rec_0, morphComp, dirResults, frac)
 nfibs=fib_rec.shape[0]
+
 #%%----------------------------------------------------------------------------
 #....................GEOMETRY OF FIBRIL POPULATION....................
 #-------------------------------------------------------------------------------
@@ -120,8 +118,8 @@ for i in range (nfibs):
     lengths_scaled[i]=coOrds_to_length(fibCoords(i))
 lengths_scaled*=nplanes/(fas_len*nexist)
 #How long are the long fibrils?
-md.my_histogram((lengths_scaled-1)*100, 'Critical Strain (%)', title=f'Critical Strain. Fibril strands appear in {desired_length/1000}um of z distance', binwidth=.5,filename=dirResults+f'/CS_dist_{desired_length}nm_{frac:.2f}.png')
-np.save(dirResults+f'/scaledlengths_{desired_length}nm_{frac:.2f}', lengths_scaled)
+md.my_histogram((lengths_scaled-1)*100, 'Critical Strain (%)', title=f'Critical Strain. Fibril strands appear in {desired_length/1000}um of z distance', binwidth=.5,filename=dirResults+f'CS_dist_{desired_length}nm_{frac:.2f}.png')
+np.save(dirResults+f'scaledlengths_{desired_length}nm_{frac:.2f}', lengths_scaled)
 
 #%% WHERE IS THE FASCICLE GOING
 
@@ -145,8 +143,8 @@ def fibril_MFD(i, FR): #maps between props and fibrec
     return mean,feret_planewise
 
 fib_MFDs=np.array([fibril_MFD(i, fib_rec)[0] for i in range(nfibs)])
-np.save(dirResults+f'/fib_MFDs_{desired_length}nm_{frac:.2f}', fib_MFDs)
-md.my_histogram(fib_MFDs, 'Minimum Feret Diameter (nm)', 'Minimum Feret Diameter distribution', filename=dirResults+f'/MFD_dist_{desired_length}nm_{frac:.2f}.png')
+np.save(dirResults+f'fib_MFDs_{desired_length}nm_{frac:.2f}', fib_MFDs)
+md.my_histogram(fib_MFDs, 'Minimum Feret Diameter (nm)', 'Minimum Feret Diameter distribution', filename=dirResults+f'MFD_dist_{desired_length}nm_{frac:.2f}.png')
 
 #%% ------------------------Area of each fibrils
 
@@ -162,7 +160,7 @@ def fibril_area(i):
     mean = np.mean(area_planewise)
     return mean, area_planewise
 fibrilArea=np.array([fibril_area(i)[0] for i in range(nfibs)])
-np.save(dirResults+f'/area_{desired_length}nm_{frac:.2f}.npy', fibrilArea)
+np.save(dirResults+f'area_{desired_length}nm_{frac:.2f}.npy', fibrilArea)
 md.my_histogram(fibrilArea/100, 'Area ($10^3$ nm$^2$)', 'Cross Sectional Area of tracked fibrils', binwidth=50)
 #%%----------------Length vs cross secitonal Area
 fib_MFDs
@@ -191,7 +189,7 @@ rel_tracked_FD=tracked_FD[(tracked_FD>lower) & (tracked_FD<upper)]
 kstest=stats.ks_2samp(rel_untracked_FD, rel_tracked_FD)
 result="reject" if kstest[1]<0.05 else "accept"
 
-md.my_histogram([rel_tracked_FD, rel_untracked_FD],'Feret diameter (nm)', binwidth=50,cols=['red', 'lime'], dens=True, title=f'$H_0$, these two samples come from the same distribution. p={kstest[1]:.2e}: {result}\n Distribution limited to ({lower}, {upper}) nm', labels=['Tracked fibrils FD', 'Untracked segments FD'],filename=dirResults+f'/statistical_significance_CS_dist_{desired_length}nm_{frac:.2f}.png', leg=True)
+md.my_histogram([rel_tracked_FD, rel_untracked_FD],'Feret diameter (nm)', binwidth=50,cols=['red', 'lime'], dens=True, title=f'$H_0$, these two samples come from the same distribution. p={kstest[1]:.2e}: {result}\n Distribution limited to ({lower}, {upper}) nm', labels=['Tracked fibrils FD', 'Untracked segments FD'],filename=dirResults+f'statistical_significance_CS_dist_{desired_length}nm_{frac:.2f}.png', leg=True)
 
 #choose one slice
 #%%----------------------------------------------------------------------------
@@ -200,7 +198,7 @@ md.my_histogram([rel_tracked_FD, rel_untracked_FD],'Feret diameter (nm)', binwid
 #Q: read original fibril record, before chopping.
 
 try:
-    fib_rec_0=np.load(dirResults+'/fib_rec.npy') #original, import fibril record
+    fib_rec_0=np.load(dirResults+'fib_rec.npy') #original, import fibril record
 except:
     print ('File not Found')
 

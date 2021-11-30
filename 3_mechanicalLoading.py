@@ -15,9 +15,10 @@ desired_length=1000 #nm
 
 
 if ('Dropbox' in os.getcwd()):#MY PC
-    dirResults=f'/Users/user/Dropbox (The University of Manchester)/fibril-tracking/nuts-and-bolts/csf-output/results_{start_plane}_{end_plane}'
+    dirResults=f'/Users/user/Dropbox (The University of Manchester)/fibril-tracking/nuts-and-bolts/csf-output/results_{start_plane}_{end_plane}/'
 else:#ON CSF
     dirResults=f'/mnt/fls01-home01/t97721hr/scratch/nuts-and-bolts/results_{start_plane}_{end_plane}'
+md.create_Directory(dirResults+'/mechanical')
 
 DSN=0 #dataset number
 directories=[dirResults] #Temp
@@ -32,15 +33,15 @@ def load_FTA_data(DSN):
     """
     d=directories[DSN] ; err=0
     try:
-        e_c=np.load(glob.glob(dirResults+f"/scaledlengths_{desired_length}*.npy")[0])-1
+        e_c=np.load(glob.glob(dirResults+f"scaledlengths_{desired_length}*.npy")[0])-1
     except:
         print("No scaledlengths file found"); err=1
     try:
-        MFDs=np.load(glob.glob(dirResults+f"/fib_MFDs_{desired_length}*.npy")[0])
+        MFDs=np.load(glob.glob(dirResults+f"fib_MFDs_{desired_length}*.npy")[0])
     except:
         print("No MFD file found") ; err=1
     try:
-        areas=np.load(glob.glob(dirResults+f"/area_{desired_length}*.npy")[0])
+        areas=np.load(glob.glob(dirResults+f"area_{desired_length}*.npy")[0])
     except:
         print("No areas file found") ; err=1
     if err==0:
@@ -83,7 +84,7 @@ fig, ax2=plt.subplots()
 ax2.plot(t_vals/60, y_vals)
 ax2.set_xlabel("Time (min)")
 ax2.set_ylabel("Strain (%)")
-plt.savefig(dir_output+'/straintime')
+plt.savefig(dir_output+'mechanical/straintime')
 plt.show()
 
 #%%----------------------------------------------------------------------------
@@ -113,7 +114,7 @@ sig_s=calculate_fibril_stress(0,e_lin, e_c, MFDs, areas, elasticmodulus)
 plt.plot(100*e_lin,sig_s, '-r')
 plt.xlabel('Strain (%)')
 plt.ylabel('Stress (MPa)')
-plt.savefig(dir_output+'/elastic-response')
+plt.savefig(dir_output+'mechanical/elastic-response')
 plt.show()
 
 
@@ -167,7 +168,7 @@ plt.plot(100*e_lin,totalstress_unloading,label='Unloading')
 plt.xlabel('Strain (%)')
 plt.ylabel('Stress (MPa)')
 plt.legend(loc="upper left")
-plt.savefig(dir_output+'/hysteresis')
+plt.savefig(dir_output+"mechanical/hysteresis')
 plt.show()
 
 
@@ -196,7 +197,7 @@ ax[1,0].annotate('C', xy=(x,y), xycoords="axes fraction", fontsize=30, color='b'
 ax[1,1].annotate('D', xy=(x,y), xycoords="axes fraction", fontsize=30, color='b')
 
 fig.tight_layout()
-plt.savefig(dir_output+'/bigfig')
+plt.savefig(dir_output+'mechanical/bigfig')
 plt.show()
 
 #%%----------------------------------------------------------------------------
@@ -216,7 +217,7 @@ headings=['fluid stress (chosen)', 'elastic modulus (Mpa)', 'c1', 'c2', 'c3', 'c
 valuessymb=np.array([nu,elasticmodulus,c1, c2, c3, c4, 1000*load_work, 1000*unload_work, 1000*delta_work, delta_work/load_work] )
 
 import csv
-with open(dir_output+'/mechloading_params.csv', mode='w') as params:
+with open(dir_output+'mechanical/mechloading_params.csv', mode='w') as params:
     params = csv.writer(params, delimiter=',')
     params.writerow(headings)
     params.writerow(valuessymb)
