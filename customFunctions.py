@@ -23,6 +23,17 @@ def create_Directory(directory):
     if not os.path.exists(directory):
         os.makedirs(directory)
 
+def getDirectories(start_plane, end_plane):
+    if ('Dropbox' in os.getcwd()):#MY PC
+        dirResults=f'/Users/user/Dropbox (The University of Manchester)/fibril-tracking/nuts-and-bolts/csf-output/results_0_695/'
+        dir3V='/Users/user/Dropbox (The University of Manchester)/em-images/nuts-and-bolts-3v-data/9am-achilles-fshx-processed/'
+    else:#ON CSF
+        dirResults=f'../nuts-and-bolts/results_{start_plane}_{end_plane}/'
+        dir3V='/mnt/fls01-home01/t97721hr/nuts-and-bolts/three-view/'
+    create_Directory(dirResults)
+    return dirResults, dir3V
+
+
 #----------------TIMING--------------------
 def t_d_stamp():
     return "{:%y-%m-%d_%H-%M}".format(dt.now())
@@ -46,7 +57,7 @@ def viewwindow(fID,pID, cofI,size, npix, nplanes, morphComp): #View window of se
     image_label_overlay = label2rgb(morphComp[pID+1], bg_label=0)
     fig, ax = plt.subplots()
     ax.imshow(image_label_overlay, interpolation='nearest')
-    plt.title('fID %i. Plane %i of %i. Size %i' % (fID,pID+1, nplanes))
+    plt.title('fID %i. Plane %i of %i. Size %i' % (fID,pID+1, nplanes, size))
     plt.ylabel('y pix')
     plt.xlabel('x pix')
     # Create a Rectangle patch
@@ -87,13 +98,44 @@ def label_volume(morphComp,fib_group,fib_rec,endplane, startplane=0):
     labels=np.where(morphComp[startplane:endplane]==0, -1, 0).astype('int16') #turn all fibs to 0, keeping background=-1
     j=0
     for pID in range(startplane, endplane):
-        print(f"Labelling volume {pID}")
+        print(f"Labelling volume {pID}") if pID in range(startplane, endplane, (endplane-startplane)//10) else 0
         for i in range (len(fib_group)):
          if fib_rec[fib_group[i], pID]!=-1:
              value=fib_group[i]+1;
              labels[j]=np.where(morphComp[pID]==fib_rec[fib_group[i], pID]+1, value, labels[j])
         j+=1
     return labels
+565/5//10/10
+import numpy as np
+x=1
+print('hi') if x in np.arange(0, 565, 565//10) else 0
+def volume_render(labels, z1, z2, x1, x2,  pxsize,dz,dirResults,filename, el=40,aspect=True):
+    minivol=labels[z1:z2, x1:x2, x1:x2]#subsection
+    # minivol=volume
+    #plotting
+    fig = plt.figure(figsize=(20, 15))
+    ax=plt.axes(projection='3d')
+    whichfibs=np.unique(minivol)[np.unique(minivol)>0]
+    # print(whichfibs)
+    j=0
+    for i in whichfibs:
+        j+=1
+        print(f"fibril {j} of {len(whichfibs)}") if j in np.arange(0, len(whichfibs), len(whichfibs//10)) else 0
+        minivol_coords=np.argwhere(minivol==i)
+        # print(minivol_coords)
+        ax.scatter(pxsize*minivol_coords[:,1]/1000, pxsize*minivol_coords[:,2]/1000, dz*minivol_coords[:,0]/1000, marker=',')
+
+    proportions=(pxsize*minivol.shape[1],pxsize*minivol.shape[2],dz*minivol.shape[0])
+    str='aspect1'
+    if aspect:
+        ax.set_box_aspect(proportions)  # aspect ratio is 1:1:1 in data space
+        str='aspectSet'
+
+    ax.view_init(elev=el, azim=225)
+
+    ax.set_xlabel('x ($\mu$m)');ax.set_zlabel('z ($\mu$m)');ax.set_ylabel('y ($\mu$m)')
+    print("Volume rendering image")
+    plt.savefig(dirResults+filename+str+'.png');plt.show()
 
 def create_animation(fib_group, labels, startplane, endplane, dt, fig_size=10, step=1,colourful=True):
     """
@@ -136,7 +178,6 @@ def create_animation_current(fib_group, labels, startplane, endplane, dt, fig_si
     container = []
     color = [tuple(np.random.random(size=3)) for i in range(len(fib_group))] #randomcolourlist
     color.insert(0,(1.,1.,1.)) #makesure other fibrils are white!!
-    print("Label2RGB")
     frameID=0
     for pID in range(startplane, endplane, step):
         print(f"animating plane {pID}")
@@ -175,7 +216,7 @@ def red_objects_1_plane(obj_group, pID):
  plt.imshow(rgblabel)
 
 #---------------PLOTS-------------------
-def my_histogram(arr,xlabel, dens=False, title=' ', labels=[], cols='g', binwidth=10, xlims=0, filename=0, leg=False):
+def my_histogram(arr,xlabel, dens=False, title=0, labels=[], cols='g', binwidth=10, xlims=0, pi=False,filename=0, leg=False):
     """
     A histogram, with number on the y axis
     """
@@ -190,7 +231,10 @@ def my_histogram(arr,xlabel, dens=False, title=' ', labels=[], cols='g', binwidt
     plt.ylabel(ylabel)
     if xlims!=0:
         plt.xlim(xlims)
-    plt.title(title)
+    if title !=0:
+        plt.title(title)
+    if pi:
+        plt.xticks(np.arange(-np.pi/4, np.pi/2, step=(np.pi/4)), ['-π/4','0','π/4'])
     plt.grid(True)
     if leg:
         plt.legend()

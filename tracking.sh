@@ -8,7 +8,7 @@
 #$ -cwd
 
 # Define a name for the job (default is name of jobscript)
-#$ -N fta
+#$ -N abc-routine
 
 #$ -m bea
 #$ -M helena.raymond-hayling@manchester.ac.uk

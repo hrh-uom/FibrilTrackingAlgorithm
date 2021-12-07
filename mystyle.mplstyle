@@ -8,3 +8,5 @@ figure.figsize : 10,6
 axes.grid:    True
 figure.titlesize : 24
 savefig.facecolor : white
+savefig.bbox : tight
+savefig.pad_inches : 0

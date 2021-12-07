@@ -8,14 +8,14 @@
 #$ -cwd
 
 # Define a name for the job (default is name of jobscript)
-#$ -N vol-R
+#$ -N jvol
 
 #$ -l mem512                   # For 32GB per core, any of the CPU types below (system chooses)
 
 #$ -m bea
 #$ -M helena.raymond-hayling@manchester.ac.uk
 
-#$ -hold_jid 3300857
+# -hold_jid 3300857
                #
                # replacing jobid with the number of the job to wait for.
 
