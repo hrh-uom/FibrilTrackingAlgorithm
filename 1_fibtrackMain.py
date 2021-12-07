@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from matplotlib import animation, rc, colors
 from PIL import Image
 import glob
@@ -14,17 +15,10 @@ import os
 #----------------------------------------------------------------------------------
 #...............................1. USER INPUT .................................
 #------------------------------------------------------------------------------------
-skip=1;start_plane, end_plane=0,5
-if ('Dropbox' in os.getcwd()):#MY PC
-    print('Running on local machine')
-    parent_dir='/Users/user/Dropbox (The University of Manchester)/fibril-tracking/nuts-and-bolts/'; # find the relevant data based on the timepoint desired
-    dir3V='/Users/user/Dropbox (The University of Manchester)/em-images/nuts-and-bolts-3v-data/9am-achilles-fshx-processed/'
-else: #ON CSF
-    print('Running on remote machine')
-    parent_dir='../nuts-and-bolts/'
-    dir3V='../nuts-and-bolts/three-view/'
-dirResults= parent_dir+f'results_{start_plane}_{end_plane}/' #Create subfolder (if it doesnt already exist!)
-print(f"Running planes {start_plane} to {end_plane}")
+start_plane=0; skip=1
+end_plane=695 if ('t97721hr' in os.getcwd()) else 5
+dirResults, dir3V=md.getDirectories(start_plane, end_plane)
+print (dir3V+'\n'+dirResults)
 #----------------------------------------------------------------------------------
 #.........................2. IMPORT IMAGES , LABEL, MEASURE ......................
 #------------------------------------------------------------------------------------
@@ -160,7 +154,7 @@ def initialise_fibril_record(MC):
     FR_local[:,0]=np.unique(MC[0])[1:]-1  #use like FR_local[fID, pID]
     #return FR_local
     return FR_local
-def fibril_mapping(a,b,c, MC, FR_local, skip=1, reduction=0, rAnge=lastplane_tomap(junk)):
+def fibril_mapping(a,b,c, MC, FR_local, skip=1, reduction=0, rAnge=lastplane_tomap(junk), frfilename='fibrec'):
     """
     Populates fibril record, from top plane through the volume
     """
@@ -176,26 +170,16 @@ def fibril_mapping(a,b,c, MC, FR_local, skip=1, reduction=0, rAnge=lastplane_tom
             continue
         dz_b, dz_f=increments_back_forward(pID,junk)
         err_table=np.zeros([nfibs,np.max(MC[pID+dz_f])])  #table of errors i,j.Overwritten at each new pID
-        # print("waypoint1")
         #CREATING ERROR TABLES
         for fID in range(nfibs):
-            # print(f"fib ID {fID}")
             #Isolating the relevant 'patch in morphological components
             if FR_local[fID,pID]!=-1: # catching nonexistent fibrils, true in pID>0
                 cofI=props[pID,FR_local[fID,pID],0:2]#centroid of fibril in plane
-                # print("waypoint2")
 
                 index=np.ndarray.flatten(md.search_window(cofI, npix/10, npix)).astype('int')
-                # print("waypoint3")
-
                 compare_me=np.delete(np.unique(np.ndarray.flatten(MC[pID+dz_f,index[0]:index[1], index[2]:index[3]]-1) ),0) #find a more neat way to do this. List of indices in next slice to look at.
-                # print("waypoint4")
-                # print (f"Compare me list {compare_me}")
                 for j in compare_me: #going through relevant segments in next slice
-                    # print(f"Compare me {j}")
                     err_table[fID,j]=err(pID, FR_local[fID,pID], FR_local[fID,pID-dz_b], j,dz_b, dz_f, a, b, c)
-        # print("waypoint2")
-
         #sorted lists of the errors and the pairs of i,j which yield these Errors
         sort_errs=sort_errs=np.sort(err_table, axis=None)
         sort_err_pairs =np.transpose(np.unravel_index(np.argsort(err_table, axis=None), err_table.shape))
@@ -225,25 +209,10 @@ def fibril_mapping(a,b,c, MC, FR_local, skip=1, reduction=0, rAnge=lastplane_tom
         # save/export stuff
         with open(dirResults+r'fibtrack_status_update.csv', 'a') as status_update:
             status_update.write('\n'+','.join(map(str,[pID,nfibs,md.t_stamp(),(time_s()-start_time)/60])))
-        np.save(dirResults+'fib_rec', FR_local)
+        np.save(dirResults+frfilename, FR_local)
     print(f"mapping complete in {(time_s()-start_time)/60} mins")
     return FR_local
 
-def trim_fib_rec(FR_local,frac=0.9):
-    """
-    Trims fibril record to fibrils which are less than some fraction of the total number of planes
-    """
-    print(f'trimming fibril record to {frac}')
-    #Q: How long are all the fibrils in the original fibril rec?
-    nfibs=FR_local.shape[0]
-    nexist=np.zeros(nfibs, dtype='int')
-    for i in range(nfibs):
-        nexist[i]=np.max(np.nonzero(FR_local[i]>-1))-np.min(np.nonzero(FR_local[i]>-1))+1
-    longfibs=np.where(nexist>nplanes*frac)[0]  #the indices of the long fibirls
-    #Erasing fibril record for short fibrils. The only way to map between the two is using longfibs. Reindexing also!
-    np.save(dirResults+f'fib_rec_trim_{frac}', FR_local[longfibs])
-    np.save(dirResults+f'labelledVol_{frac}',md.label_volume(MC,np.arange(longfibs.size), FR_local[longfibs], nplanes))
-    return FR_local[longfibs]
 
 #%%---------------------------------------------------------------------------
 #.................................4. MAIN FLOW ...........................
@@ -252,13 +221,158 @@ a,b,c=1,1,1
 def main(a, b, c):
     FR_core=initialise_fibril_record(MC)
     FR_core=fibril_mapping(a, b, c, MC,FR_core)
+# main()
 
 #%%---------------------------------------------------------------------------
-#.................................SANDBOX....................................
+#.................................5. ABC ROUTINE ...........................
 #-------------------------------------------------------------------------------
-# dirResults
-# FR_core=np.load(dirResults+"/fib_rec.npy")
-#
-# i=0
-# FR_core
-# np.unique(FR_core[610])
+
+def ndropped(a, b, c, pID_list):
+    """
+    figuring out how many dropped in a pair of planes
+    """
+    lis=[];
+    for pID in pID_list:
+        nfibs=np.max(MC[pID]);
+        fib_rec=np.full((nfibs,nplanes),-1, dtype=int) #-1 means no fibril here, as indices are >= 0
+        fib_rec[:,pID]=np.arange(nfibs); #use like fib_rec[fID, pID]
+        dz_b, dz_f=increments_back_forward(pID,junk)
+        err_table=np.zeros([nfibs,np.max(MC[pID+dz_f])]); #table of errors i,j. Overwritten at each new pID
+
+        #CREATING ERROR TABLES
+        for fID in range(nfibs):
+            #Isolating the relevant 'patch in morphological components
+            if fib_rec[fID,pID]!=-1: # catching nonexistent fibrils, true in pID>0
+                cofI=props[pID,fib_rec[fID,pID],0:2]#centroid of fibril in plane
+                index=np.ndarray.flatten(md.search_window(cofI, npix/10, npix)).astype('int')
+                compare_me=np.delete(np.unique(np.ndarray.flatten(MC[pID+dz_f,index[0]:index[1], index[2]:index[3]]-1) ),0) #find a more neat way to do this. List of indices in next slice to look at.
+                for j in compare_me: #going through relevant segments in next slice
+                    err_table[fID,j]=err(pID, fib_rec[fID,pID], fib_rec[fID,pID-dz_b], j,dz_b, dz_f, a, b, c)
+
+        #sorted lists of the errors and the pairs of i,j which yield these Errors
+        sort_errs=sort_errs=np.sort(err_table, axis=None)
+        sort_err_pairs =np.transpose(np.unravel_index(np.argsort(err_table, axis=None), err_table.shape))
+
+        #delete pairs with 0 errors (ie those who are outside the box) and those above the threshold
+        delete=np.concatenate((np.where(sort_errs==0)[0],np.where(sort_errs>errorthresh(a,b,c, skip))[0]), axis=0)
+        sort_err_pairs=np.delete(sort_err_pairs,delete, axis=0)
+
+        i=0  #Matching up
+        while sort_err_pairs.shape[0]>0:
+            match=sort_err_pairs[0]  # picks out smallest error match
+            fib_rec[match[0], pID+dz_f]=match[1]  # fills in the corresponding fibril recor with this match
+            #delete all other occurences of i,j
+            deleteme=np.unique(np.ndarray.flatten(np.concatenate((np.argwhere(sort_err_pairs[:,0]==match[0]),np.argwhere(sort_err_pairs[:,1]==match[1]))))).tolist()
+            sort_err_pairs=np.delete(sort_err_pairs, deleteme,axis=0)
+            i=i+1
+        lis.append(nfibs/np.count_nonzero(fib_rec[:,pID+dz_f]<0))
+    return lis
+
+def make_abc_map(a, b, c, N, nrepeats=5):
+    # filling the heatmap, value by value
+    np.savetxt(dirResults+"/abc/values_abc.txt", np.vstack((np.ones(N),b,c)).T) #saves ABC values
+    fun_map = np.empty((b.size, c.size))
+    for i in range(b.size):
+        for j in range(c.size):
+            print(f'i,j={i},{j}')
+            random_planes=np.random.choice(np.setdiff1d(np.arange(nplanes-1),junk),nrepeats)
+            fun_map[i,j] = np.mean(ndropped(a, b[i],c[j], random_planes))
+    np.save(dirResults+"/abc/heatmap_abc", fun_map)
+
+def plot_abc_map(a, b, c):
+    #PLOTTING THE HEATMAP OF ABC VALUES
+    fun_map=np.load(dirResults+"/abc/heatmap_abc.npy")
+    fig = plt.figure()
+    s = fig.add_subplot(1, 1, 1, xlabel='b', ylabel='c')
+    extent = [ b[0], b[-1],  c[0],  c[-1]];
+    im = plt.imshow(fun_map.T,extent=extent, origin='lower') #the transpose is because of the row column effect
+    fig.colorbar(im);
+    plt.title('1 in how many fibrils dropped. a=1')
+    plt.savefig(dirResults+"/abc/abc.png")
+    plt.show()
+    #print ((time_s()-start_time)/60)
+
+def sort_abc(a, b, c):
+    fun_map=np.load(dirResults+"/abc/heatmap_abc.npy")
+    #SORTING THE VALUES OF B AND C
+    sort_pairs=np.vstack(np.unravel_index((-fun_map).argsort(axis=None, kind='mergesort'), fun_map.shape))
+    bcSort=np.vstack((b[sort_pairs[0]],c[sort_pairs[1]])).T
+    np.savetxt(dirResults+ "/abc/a1_b_c_values_sorted.txt", bcSort)
+    return bcSort
+
+def map_best_abc(bcSort, rank=1):
+    #RUNNING THE BEST VALUES OF ABC AND EXPORTING
+    print(f'Mapping {rank+1} rank 1 a=1, b={bcSort[rank,0]:.2f}, c={bcSort[rank,1]:.2f}')
+    a=1
+    b,c=bcSort[rank]
+    abc_string="_rank_%d_a_%.2f_b_%.2f_c_%.2f"%(rank, a, b, c)
+    fibril_mapping(a, b, c, MC, initialise_fibril_record(MC),frfilename='/abc/fibrec'+abc_string)
+
+
+def main_abc():
+    #CREATING HEATMAP OF ABC VALUES
+    md.create_Directory(dirResults+'/abc/')
+    N=21
+    a=1;b=np.linspace(0,3,N);c=b.copy()
+    if os.path.isfile(dirResults+'/abc/a1_b_c_values_sorted.txt'):
+    # if os.path.isfile('/Users/user/Dropbox (The University of Manchester)/fibril-tracking/nuts-and-bolts/csf-output/abc-dec21/a1_b_c_values_sorted.txt'):
+        print ("Importing abc values from previous run")
+        bcSort=np.loadtxt(dirResults+ 'abc/a1_b_c_values_sorted.txt')
+        # bcSort=np.loadtxt('/Users/user/Dropbox (The University of Manchester)/fibril-tracking/nuts-and-bolts/csf-output/abc-dec21/a1_b_c_values_sorted.txt')
+    else:
+        print ("ABC Routine")
+        print ("Making ABC map")
+        make_abc_map(a, b, c, N, nrepeats=10)
+        print ("Plotting ABC map")
+        plot_abc_map(a, b, c)
+        bcSort=sort_abc(a, b, c)
+    print ("Running best ABC values")
+    for i in range (5):
+        map_best_abc(bcSort, rank=i)
+# main_abc()
+#%%---------------------------------------------------------------------------
+#.................................5. ALGORITHM FUNCTION FIG ...........................
+#-------------------------------------------------------------------------------
+def make_schematic():
+    ministack=create_binary_stack(dir3V, 0,2, whitefibrils=True)
+    labels=10*ministack[0]
+    pID=0; fID=892
+    MC[pID].shape
+    labels=np.where(MC[pID]==fID+1,fID+1, labels)
+    labels.shape
+    np.unique(labels)
+    cols = ['grey', 'red', 'orange', 'blue', 'yellow', 'purple']
+    rgblabel=label2rgb(labels-1, bg_label=-1, colors=cols);
+    cofI=props[pID, fID, 0:2]
+    xy=md.search_window(cofI, npix/10, npix)[:,0].tolist();
+    recsize=np.ndarray.flatten(np.diff(md.search_window(cofI, npix/10, npix))).tolist();
+    fig1, ax1 = plt.subplots( )
+    ax1.imshow(rgblabel, origin='lower', interpolation='nearest')
+    # plt.title('fID %i. Plane %i of %i. Size %i' % (fID,pID+1, nplanes, npix/10))
+    # plt.ylabel('y pix')
+    # plt.xlabel('x pix')
+    # Create a Rectangle patch
+    import matplotlib.patches as patches
+
+    rect=patches.Rectangle((xy[1],xy[0]),recsize[0],recsize[1],linewidth=1,edgecolor='w',facecolor='none')
+    rect2=patches.Rectangle((xy[1],xy[0]),recsize[0],recsize[1],linewidth=1,edgecolor='w',facecolor='none')
+    # Add the patch to the Axes
+    ax1.add_patch(rect)
+    ax1.set_title("Plane $p$")
+    plt.savefig(dirResults+'window-schematic1.png');    plt.show()
+
+    fig2, ax2 = plt.subplots( )
+
+    ax2.set_title("Plane $p+1$")
+
+    index=np.ndarray.flatten(md.search_window(cofI, npix/10, npix)).astype('int')
+    compare_me=np.delete(np.unique(np.ndarray.flatten(MC[pID+1,index[0]:index[1], index[2]:index[3]]-1) ),0)
+    labels2=10*ministack[1]
+    for fID in compare_me:
+        labels2=np.where(MC[pID+1]==fID+1,50, labels2)
+    rgblabel2=label2rgb(labels2-1, bg_label=-1, colors=cols);
+    ax2.imshow(rgblabel2, origin='lower', interpolation='nearest')
+    ax2.add_patch(rect2)
+    plt.savefig(dirResults+'window-schematic2.png');    plt.show()
+pxsize*1000
+10make_schematic()
