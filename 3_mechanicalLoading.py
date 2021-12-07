@@ -13,11 +13,7 @@ plt.style.use('./mystyle.mplstyle')
 start_plane, end_plane=0,695
 desired_length=1000 #nm
 
-
-if ('Dropbox' in os.getcwd()):#MY PC
-    dirResults=f'/Users/user/Dropbox (The University of Manchester)/fibril-tracking/nuts-and-bolts/csf-output/results_{start_plane}_{end_plane}/'
-else:#ON CSF
-    dirResults=f'/mnt/fls01-home01/t97721hr/scratch/nuts-and-bolts/results_{start_plane}_{end_plane}'
+dirResults, dir3V=md.getDirectories(start_plane, end_plane)
 md.create_Directory(dirResults+'/mechanical')
 
 DSN=0 #dataset number
