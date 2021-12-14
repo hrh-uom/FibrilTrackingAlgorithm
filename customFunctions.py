@@ -23,15 +23,20 @@ def create_Directory(directory):
     if not os.path.exists(directory):
         os.makedirs(directory)
 
-def getDirectories(start_plane, end_plane):
+def getDirectories():
     if ('Dropbox' in os.getcwd()):#MY PC
-        dirResults=f'/Users/user/Dropbox (The University of Manchester)/fibril-tracking/nuts-and-bolts/csf-output/results_0_695/'
+        dirResults=f'/Users/user/Dropbox (The University of Manchester)/fibril-tracking/nuts-and-bolts/local_results_0_5/'
         dir3V='/Users/user/Dropbox (The University of Manchester)/em-images/nuts-and-bolts-3v-data/9am-achilles-fshx-processed/'
+        start=0;end=5
     else:#ON CSF
-        dirResults=f'../nuts-and-bolts/results_{start_plane}_{end_plane}/'
+        dirResults=f'../nuts-and-bolts/results_0_695/'
         dir3V='/mnt/fls01-home01/t97721hr/nuts-and-bolts/three-view/'
+        start=0; end=695
     create_Directory(dirResults)
-    return dirResults, dir3V
+    print (dirResults)
+    print (dir3V)
+    print (f"Using plane {start} to {end}")
+    return dirResults, dir3V, start, end
 
 
 #----------------TIMING--------------------

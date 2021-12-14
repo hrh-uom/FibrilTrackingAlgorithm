@@ -7,11 +7,13 @@
 # Tell SGE to run the job in the current directory
 #$ -cwd
 
+
 # Define a name for the job (default is name of jobscript)
-#$ -N abc-routine
+#$ -N tracking
 
 #$ -m bea
 #$ -M helena.raymond-hayling@manchester.ac.uk
+
 
 #$ -l mem256                   # For 16GB per core, any of the CPU types below
                                # Jobs will run on Haswell CPUs (AVX,AVX2 capable), max 16 cores
@@ -23,4 +25,4 @@ source activate fta-env # jobscripts you should use 'source'
 # Load the version you require
 module load apps/binapps/anaconda3/2020.07  # Python 3.8.3
 
-python 1_fibtrackMain.py
+python a1_fibtrackMain.py
