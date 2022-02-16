@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from  datetime import datetime as dt
 import os
+from a0_initialise import *
 plt.style.use('./mystyle.mplstyle')
 
 #----------------DIRECTORIES AND PATHS-------------------
@@ -23,21 +24,6 @@ def create_Directory(directory):
     if not os.path.exists(directory):
         os.makedirs(directory)
 
-def getDirectories():
-    if ('Dropbox' in os.getcwd()):#MY PC
-        dirResults=f'/Users/user/Dropbox (The University of Manchester)/fibril-tracking/nuts-and-bolts/local_results_0_5/'
-        dir3V='/Users/user/Dropbox (The University of Manchester)/em-images/nuts-and-bolts-3v-data/9am-achilles-fshx-processed/'
-        start=0;end=5
-    else:#ON CSF
-        dirResults=f'../nuts-and-bolts/results_0_695/'
-        dir3V='/mnt/fls01-home01/t97721hr/nuts-and-bolts/three-view/'
-        start=0; end=695
-    create_Directory(dirResults)
-    print (dirResults)
-    print (dir3V)
-    print (f"Using plane {start} to {end}")
-    return dirResults, dir3V, start, end
-
 
 #----------------TIMING--------------------
 def t_d_stamp():
@@ -46,7 +32,9 @@ def t_stamp():
     return "{:%H-%M-%S}".format(dt.now())
 def beep():
     winsound.Beep(500, 800);
-
+def print_status(update):
+    with open(d.dirOutputs+f'status_update.csv', 'a') as status_update:
+        status_update.write(update)
 #-------------SEARCH WINDOWS FOR FIBRIL TRACKING --------------
 def search_window(cofI, size, npix):
     """
@@ -73,7 +61,7 @@ def viewwindow(fID,pID, cofI,size, npix, nplanes, morphComp): #View window of se
 
 #-------------TRIM FIBRIL RECORD-------------
 
-def trim_fib_rec(FR_local, MC, dirResults,frac=0.9):
+def trim_fib_rec(FR_local, MC, dirOutputs,frac=0.9, save=True):
     """
     Trims fibril record to fibrils which are less than some fraction of the total number of planes
     """
@@ -81,16 +69,18 @@ def trim_fib_rec(FR_local, MC, dirResults,frac=0.9):
     #Q: How long are all the fibrils in the original fibril rec?
     nfibs, nplanes=FR_local.shape
     nexist=np.zeros(nfibs, dtype='int')
+    # print(f'nfibs {nfibs, nplanes, nexist}')
     for i in range(nfibs):
         if i in np.arange(0, nfibs)[0::1000]:
             print (f"Fibril {i} of {nfibs}")
         nexist[i]=np.max(np.nonzero(FR_local[i]>-1))-np.min(np.nonzero(FR_local[i]>-1))+1
+    # print(f'nexist {np.unique(nexist)}')
     longfibs=np.where(nexist>nplanes*frac)[0]  #the indices of the long fibirls
     #Erasing fibril record for short fibrils. The only way to map between the two is using longfibs. Reindexing also!
-
-    np.save(dirResults+f'fib_rec_trim_{frac:.2f}', FR_local[longfibs])
-    labels=label_volume(MC, np.arange(longfibs.size),FR_local[longfibs], nplanes )
-    np.save(dirResults+f'labelled_vol_{frac:.2f}', labels)
+    if save:
+        np.save(dirOutputs+f'fib_rec_trim_{frac:.2f}', FR_local[longfibs])
+        labels=label_volume(MC, np.arange(longfibs.size),FR_local[longfibs], nplanes )
+        np.save(dirOutputs+f'labelled_vol_{frac:.2f}', labels)
     return FR_local[longfibs]
 
 #------------------ANIMATION AND VISUALISATION-----------------------------#
@@ -110,11 +100,8 @@ def label_volume(morphComp,fib_group,fib_rec,endplane, startplane=0):
              labels[j]=np.where(morphComp[pID]==fib_rec[fib_group[i], pID]+1, value, labels[j])
         j+=1
     return labels
-565/5//10/10
-import numpy as np
-x=1
-print('hi') if x in np.arange(0, 565, 565//10) else 0
-def volume_render(labels, z1, z2, x1, x2,  pxsize,dz,dirResults,filename, el=40,aspect=True):
+
+def volume_render(labels, z1, z2, x1, x2,  pxsize,dz,dirOutputs,filename, el=40,aspect=True, show=True):
     minivol=labels[z1:z2, x1:x2, x1:x2]#subsection
     # minivol=volume
     #plotting
@@ -123,6 +110,7 @@ def volume_render(labels, z1, z2, x1, x2,  pxsize,dz,dirResults,filename, el=40,
     whichfibs=np.unique(minivol)[np.unique(minivol)>0]
     # print(whichfibs)
     j=0
+    print("Volume rendering image")
     for i in whichfibs:
         j+=1
         print(f"fibril {j} of {len(whichfibs)}") if j in np.arange(0, len(whichfibs), len(whichfibs//10)) else 0
@@ -131,16 +119,16 @@ def volume_render(labels, z1, z2, x1, x2,  pxsize,dz,dirResults,filename, el=40,
         ax.scatter(pxsize*minivol_coords[:,1]/1000, pxsize*minivol_coords[:,2]/1000, dz*minivol_coords[:,0]/1000, marker=',')
 
     proportions=(pxsize*minivol.shape[1],pxsize*minivol.shape[2],dz*minivol.shape[0])
-    str='aspect1'
     if aspect:
         ax.set_box_aspect(proportions)  # aspect ratio is 1:1:1 in data space
-        str='aspectSet'
 
     ax.view_init(elev=el, azim=225)
 
     ax.set_xlabel('x ($\mu$m)');ax.set_zlabel('z ($\mu$m)');ax.set_ylabel('y ($\mu$m)')
-    print("Volume rendering image")
-    plt.savefig(dirResults+filename+str+'.png');plt.show()
+    print("Saving VR rendering image")
+    plt.savefig(dirOutputs+filename+'.png')
+    if show:
+        plt.show()
 
 def create_animation(fib_group, labels, startplane, endplane, dt, fig_size=10, step=1,colourful=True):
     """
@@ -221,28 +209,47 @@ def red_objects_1_plane(obj_group, pID):
  plt.imshow(rgblabel)
 
 #---------------PLOTS-------------------
-def my_histogram(arr,xlabel, dens=False, title=0, labels=[], cols='g', binwidth=10, xlims=0, pi=False,filename=0, leg=False):
+def my_histogram(arr,xlabel, dens=False, title=0, labels=[], binwidth=10, xlims=0, pi=False,filename=0, leg=False, fitdata=0, fitparams=0):
     """
     A histogram, with number on the y axis
     """
     #cols=['red', 'lime', 'blue', 'pink']
+    fig, ax=plt.subplots()
     minx=np.min(np.concatenate(arr)) if isinstance(arr,list) else np.min(arr)
     maxx=np.max(np.concatenate(arr)) if isinstance(arr,list) else np.max(arr)
     bins=np.arange(binwidth * np.floor(minx/binwidth),binwidth * (1+np.ceil(maxx/binwidth)),binwidth)
-    plt.hist(arr, bins=bins, density=dens, histtype='bar', edgecolor='black', color=cols,label=labels)
-    plt.xlabel(xlabel)
-    plt.tick_params(axis="x", bottom=True, top=True, labelbottom=True, labeltop=True)
+    ax.hist(arr, bins=bins, density=dens, histtype='bar', edgecolor='black', label=labels)
+    ax.set_xlabel(xlabel)
+    ax.tick_params(axis="x", bottom=True, top=True, labelbottom=True, labeltop=True)
     ylabel='Density' if dens else 'Number'
-    plt.ylabel(ylabel)
+    ax.set_ylabel(ylabel); ax.margins(0);
     if xlims!=0:
-        plt.xlim(xlims)
+        ax.xlim(xlims)
     if title !=0:
-        plt.title(title)
+        ax.set_title(title)
     if pi:
-        plt.xticks(np.arange(-np.pi/4, np.pi/2, step=(np.pi/4)), ['-π/4','0','π/4'])
-    plt.grid(True)
+        ax.set_xticks(np.arange(-np.pi/4, np.pi/2, step=(np.pi/4)), ['-π/4','0','π/4'])
+
     if leg:
-        plt.legend()
+        ax.legend()
+
+    if np.any(fitdata):
+        if dens:
+            ax.plot(fitdata[0], fitdata[1], 'r')
+        else:
+            ax2=ax.twinx()
+            ax2.plot(fitdata[0], fitdata[1], 'r')
+
+            ax2.set_ylabel('Density')
+            ax2.margins(0)
+            ax2.grid(False)
+    if np.any(fitparams):
+        textstr=f'$\sigma$ = {fitparams[0]:.3f} \n$\mu$ = {fitparams[1]:.3f}'
+        # these are matplotlib.patch.Patch properties
+        props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+        # place a text box in upper left in axes coords
+        ax.text(0.8, 0.9, textstr, transform=ax.transAxes, fontsize=18,
+        verticalalignment='top', bbox=props)
     if filename!=0:
         plt.savefig(filename)
     plt.show()
