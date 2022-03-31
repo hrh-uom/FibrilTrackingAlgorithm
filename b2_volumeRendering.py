@@ -10,7 +10,36 @@ from skimage.color import label2rgb
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from IPython.display import HTML
+from tqdm import tqdm
 plt.style.use('./mystyle.mplstyle')
+
+print("b2: Volume rendering")
+def load_FTA_results_rough():
+    md.create_Directory(d.dirOutputs+'/volumerendering')
+    try:
+        path=glob.glob( d.dirOutputs + 'morphComp*')[0];
+        MC=np.load(path) #original, import fibril record
+    except:
+        print("Error, no MC found")
+    try:
+        path=glob.glob( d.dirOutputs + 'fib_rec*')[0];
+        FR=np.load(path) #original, import fibril record
+    except:
+        FR=0
+        print("Error, no fibrec found")
+    nF=FR.shape[0];print(f'nF={nF}')
+    try:
+        volume=md.label_volume(MC,np.arange(nF),FR,d.nP)
+        if np.any(d.junk <=d.nP): #CORRECTING JUNK PLANES
+            volume=np.delete(volume,d.junk[d.junk<=d.nP], axis=0) #deletes junk planes
+        # print (d.dirOutputs+f'labelled_vol_{d.frac:.2f}')
+        np.save(d.dirOutputs+f'labelled_vol_{100*d.frac}', volume)
+    except:
+        volume=0
+        print("Error, no labelled volume found")
+
+    return MC, FR, volume, nF
+# MC, FR, volume,d.frac=load_FTA_results_rough()
 
 def load_FTA_results():
     md.create_Directory(d.dirOutputs+'/volumerendering')
@@ -20,55 +49,27 @@ def load_FTA_results():
     except:
         print("Error, no MC found")
     try:
-        path=glob.glob( d.dirOutputs + 'fib_rec*'+f'{frac}*')[0];
+        path=glob.glob( d.dirOutputs + 'fib_rec*'+f'{d.frac*100}*')[0];
         FR=np.load(path) #original, import fibril record
+        nF=FR.shape[0]
+        print(f'nF={nF}')
     except:
         FR=0
         print("Error, no fibrec found")
     try:
-        path=glob.glob( d.dirOutputs + f'label*{frac}*')[0];
+        path=glob.glob( d.dirOutputs + f'label*{d.frac*100}*')[0]
         volume=np.load(path).astype(float) #original, import fibril record
-        if np.any(junk <=d.nP): #CORRECTING JUNK PLANES
-            volume=np.delete(volume,junk[junk<=d.nP], axis=0) #deletes junk planes
+        # if np.any(junk <=d.nP): #CORRECTING JUNK PLANES
+        #     volume=np.delete(volume,junk[junk<=d.nP], axis=0) #deletes junk planes
     except:
         volume=0
         print("Error, no labelled volume found")
-
-    desired_length=1000;frac=np.round(desired_length/d.pxsize)/d.nP
-
-    return MC, FR, volume,frac
-MC, FR, volume,frac=load_FTA_results()
+    return MC, FR, volume, nF
+# MC, FR, volume,d.frac=load_FTA_results()
 #%%----------------STEP THROUGH ANIMATION ---------------------------------
-def f():
-    md.export_animation(d.dirOutputs, np.arange(nfibs) ,volume,dt=20,step=2)
-    #TRYING TO MAKE OWN RGB LABEL
-    import importlib
-    importlib.reload(md);
 
-    # labels=md.label_volume(MC, np.arange(nfibs), FR, 110, 100)
-    # junk
-    # md.animation_inline(np.arange(nfibs) ,labels, step=1)
-
-
-    labels=md.label_volume(MC, np.arange(nfibs), FR, 10)
-
-    nfibs=np.max(labels)+1
-    fib_group=np.unique(labels)
-    fib_group
-    labels.shape
-    color = [tuple(np.random.random(size=3).astype('float16')) for i in range(nfibs)]
-    color.insert(0, (1.,1.,1.))
-    pID=0
-    labels.shape[1]
-
-    rgblabel=np.zeros((labels.shape[1],labels.shape[2], 3))
-    for i in fib_group:
-        #includes -1
-        rgblabel[np.argwhere(labels[pID]==0)]=color[i]
-
-    plt.imshow(rgblabel)
-
-    labels[pID]
+def stepthrough():
+    md.export_animation(d.dirOutputs, np.arange(nF) ,volume,dt=100,step=1)
 
 #%%----------------MID -PLANE IMAGE------------------------------------------
 def midPlaneImage():
@@ -81,54 +82,14 @@ def midPlaneImage():
     color = [choice for i in range(int(np.max(volume)))]
     color.insert(0,(.5,.5, .5)) #makesure other fibrils are white!!
     ax.set_xlabel('x ($\mu$m)');ax.set_ylabel('y ($\mu$m)')
-    plt.imshow(label2rgb(volume[int(d.nP/2)], bg_label=-1,colors=color), extent=[0,npix*d.pxsize/1000,0, npix*d.pxsize/1000])
+    plt.imshow(label2rgb(volume[int(d.nP/2)], bg_label=-1,colors=color), extent=[0,d.npix*d.pxsize/1000,0, d.npix*d.pxsize/1000])
     plt.savefig(d.dirOutputs+'volumerendering/mid-stack-img');
     plt.show()
-midPlaneImage()
+# midPlaneImage()
 
 #%%------------------VOLUME RENDERING------------------------------------------
-# md.volume_render(volume, 0, d.nP,0 ,npix, d.pxsize, dz, d.dirOutputs, '/volumerendering/3d-render', el=50 )
 
-
-def trim_fib_rec(FR_local, MC, d.dirOutputs=False,frac=0.9):
-    """
-    Trims fibril record to fibrils which are less than some fraction of the total number of planes
-    """
-    print(f'trimming fibril record to {frac}')
-    #Q: How long are all the fibrils in the original fibril rec?
-    nfibs, d.nP=FR_local.shape
-    print(f'hi{nfibs, d.nP}')
-    nexist=np.zeros(nfibs, dtype='int')
-    # print(f'nfibs {nfibs, d.nP, nexist}')
-    for i in range(nfibs):
-        if i in np.arange(0, nfibs)[0::1000]:
-            print (f"Fibril {i} of {nfibs}")
-        nexist[i]=np.max(np.nonzero(FR_local[i]>-1))-np.min(np.nonzero(FR_local[i]>-1))+1
-    # print(f'nexist {np.unique(nexist)}')
-    longfibs=np.where(nexist>d.nP*frac)[0]  #the indices of the long fibirls
-    #Erasing fibril record for short fibrils. The only way to map between the two is using longfibs. Reindexing also!
-    if d.dirOutputs!=False:
-        np.save(d.dirOutputs+f'fib_rec_trim_{frac:.2f}', FR_local[longfibs])
-        labels=label_volume(MC, np.arange(longfibs.size),FR_local[longfibs], d.nP )
-        np.save(d.dirOutputs+f'labelled_vol_{frac:.2f}', labels)
-    return FR_local[longfibs]
-def label_volume(morphComp,fib_group,fib_rec,endplane, startplane=0):
-    """
-    Returns array where each seperate fibril is labelled with a number.
-    Same dims as MC input ie nx ny d.nP
-    """
-    print("Labelling volume")
-    labels=np.where(morphComp[startplane:endplane]==0, -1, 0).astype('int16') #turn all fibs to 0, keeping background=-1
-    j=0
-    for pID in range(startplane, endplane):
-        print(f"Labelling volume {pID}") if pID in range(startplane, endplane, (endplane-startplane)//10) else 0
-        for i in range (len(fib_group)):
-         if fib_rec[fib_group[i], pID]!=-1:
-             value=fib_group[i]+1;
-             labels[j]=np.where(morphComp[pID]==fib_rec[fib_group[i], pID]+1, value, labels[j])
-        j+=1
-    return labels
-def volume_render(labels, z1, z2, x1, x2,  d.pxsize,dz,d.dirOutputs,filename, el=40,aspect=True, show=True):
+def volume_render(labels, z1, z2, x1, x2,  pxsize,dz,dirOutputs,filename, el=40,aspect=True, show=True):
     minivol=labels[z1:z2, x1:x2, x1:x2]#subsection
     # minivol=volume
     #plotting
@@ -138,7 +99,7 @@ def volume_render(labels, z1, z2, x1, x2,  d.pxsize,dz,d.dirOutputs,filename, el
     # print(whichfibs)
     j=0
     print("Volume rendering image")
-    for i in whichfibs:
+    for i in tqdm(whichfibs):
         j+=1
         print(f"fibril {j} of {len(whichfibs)}") if j in np.arange(0, len(whichfibs), len(whichfibs//10)) else 0
         minivol_coords=np.argwhere(minivol==i)
@@ -156,6 +117,16 @@ def volume_render(labels, z1, z2, x1, x2,  d.pxsize,dz,d.dirOutputs,filename, el
     plt.savefig(d.dirOutputs+filename+'.png')
     if show:
         plt.show()
+
+
+#%%-----------MAIN FLOW
+
+if __name__=='__main__':
+    # parallell_process()
+    MC, FR, volume,nF=load_FTA_results()
+    stepthrough()
+    midPlaneImage()
+    volume_render(volume, 0, d.nP, 0, d.npix, d.pxsize, d.dz, d.dirOutputs, 'volumerendering/volume-render')
 
 
 #%%------------------VOLUME FOR ABC-------------------------------------------------
@@ -176,14 +147,14 @@ def get_abc_from_filename(f):
     return a,b,c
 
 def func(f, output_prefix='test', seed=0):
-    MC, _ , _, d.pxsize,junk, dz, d.nP, npix, frac=load_FTA_results()
+    MC, _ , _, d.pxsize,junk, dz, d.nP, d.npix, d.frac=load_FTA_results()
     print (f"ABC={get_abc_from_filename(f)}")
     FR=np.load(f)
-    print(f'nfibs before trim {FR.shape}')
-    FR_trim=trim_fib_rec(FR, MC, frac=frac)
-    nfibs=FR_trim.shape[0]
-    print(f'nfibs after trim {nfibs}')
-    labels=label_volume(MC,np.arange(0, nfibs, nfibs//50),FR_trim, d.nP)
+    print(f'nF before trim {FR.shape}')
+    FR_trim=trim_fib_rec(FR, MC, frac=d.frac)
+    nF=FR_trim.shape[0]
+    print(f'nF after trim {nF}')
+    labels=label_volume(MC,np.arange(0, nF, nF//50),FR_trim, d.nP)
     d.dirOutputs='/Users/user/Dropbox (The University of Manchester)/fibril-tracking/nuts-and-bolts/csf-695/abc/'
     a,b,c=get_abc_from_filename(f)
     outputfilename=f'{output_prefix}_a_{a}_b_{b}_c_{c}'
@@ -215,8 +186,6 @@ def parallell_process():
     finish=time.perf_counter()
     print (f'Finished in {round((finish-start)/60, 5)}s')
 
-if __name__=='__main__':
-    parallell_process()
 #%%---------------VOLUME RENDERING ANIMATION SANDBOX-----------------------------
 """
 
@@ -271,3 +240,33 @@ ani = animation.ArtistAnimation(fig, container, interval=1000, blit=True)
 plt.close();
 HTML(ani.to_html5_video())
 """
+
+def f():
+    #TRYING TO MAKE OWN RGB LABEL
+    import importlib
+    importlib.reload(md);
+
+    # labels=md.label_volume(MC, np.arange(nF), FR, 110, 100)
+    # junk
+    # md.animation_inline(np.arange(nF) ,labels, step=1)
+
+
+    labels=md.label_volume(MC, np.arange(nF), FR, 10)
+
+    nF=np.max(labels)+1
+    fib_group=np.unique(labels)
+    fib_group
+    labels.shape
+    color = [tuple(np.random.random(size=3).astype('float16')) for i in range(nF)]
+    color.insert(0, (1.,1.,1.))
+    pID=0
+    labels.shape[1]
+
+    rgblabel=np.zeros((labels.shape[1],labels.shape[2], 3))
+    for i in fib_group:
+        #includes -1
+        rgblabel[np.argwhere(labels[pID]==0)]=color[i]
+
+    plt.imshow(rgblabel)
+
+    labels[pID]

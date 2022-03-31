@@ -11,6 +11,7 @@ from importlib import reload # reload(module_of_choice);
 import os, glob
 from datetime import datetime, timedelta
 from time import time as tt
+from tqdm import tqdm
 
 #%%-----------------------1. FIBRIL MAPPING-------------------------------------
 #------Errors
@@ -78,17 +79,15 @@ def fibril_mapping(a,b,c, MC, FR_local, skip=1, FRFname='fib_rec'):
     start_time=tt()
     nfibs=FR_local.shape[0]
     md.print_status('\npID,nfibs,time,time since mapping began (min)')
-    for pID in range (lastplane_tomap()):
-        print(f'Mapping, pid {pID}, t={str(timedelta(seconds=np.round(tt()-start_time)))}')
+    print("Starting fibril mapping")
+    for pID in tqdm(range(lastplane_tomap())):
         if np.any(d.junk==pID):#If the slice is junk, skip the mapping.
             #x=1
             continue
         dz_b, dz_f=increments_back_forward(pID)
         err_table=np.zeros([nfibs,np.max(MC[pID+dz_f])])  #table of errors i,j.Overwritten at each new pID
-        # print("waypoint1")
         #CREATING ERROR TABLES
         for fID in range(nfibs):
-            # print(f"fib ID {fID}")
             #Isolating the relevant 'patch in morphological components
             if FR_local[fID,pID]!=-1: # catching nonexistent fibrils, true in pID>0
                 cofI=props[pID,FR_local[fID,pID],0:2]#centroid of fibril in plane
@@ -133,11 +132,11 @@ def fibril_mapping(a,b,c, MC, FR_local, skip=1, FRFname='fib_rec'):
 
 #%%------------------------------2. MAIN FLOW -----------------------------------
 if __name__ == "__main__":
-
+    print("a1: fibril tracking")
     a,b,c=1,1,1
 
     # d=dataset(input('Enter Dataset'))
-    md.print_status('\n\nNEW RUN \n time,'+str(datetime.now())+f'\n a, {a}\n b,{b} \n c,{c}\n')
+    md.print_status('\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nNEW RUN \n time,'+str(datetime.now())+f'\n a, {a}\n b,{b} \n c,{c}\n')
     for key, value in vars(d).items():
         print(key,'\t',value)
         md.print_status(key+','+str(value)+'\n')

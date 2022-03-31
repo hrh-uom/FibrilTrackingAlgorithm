@@ -16,7 +16,7 @@ def make_schematic():
     cofI=props[pID, fID, 0:2]
     xy=md.search_window(cofI, d.npix/10, d.npix)[:,0].tolist();
     recsize=np.ndarray.flatten(np.diff(md.search_window(cofI, d.npix/10, d.npix))).tolist();
-    fig1, ax1 = plt.subplots( )
+    fig1, (ax1, ax2) = plt.subplots( 1, 2  )
     ax1.imshow(rgblabel, origin='lower', interpolation='nearest')
     # plt.title('fID %i. Plane %i of %i. Size %i' % (fID,pID+1, nplanes, d.npix/10))
     # plt.ylabel('y pix')
@@ -29,9 +29,7 @@ def make_schematic():
     # Add the patch to the Axes
     ax1.add_patch(rect)
     ax1.set_title("Plane $p$")
-    plt.savefig(d.dirOutputs+'window-schematic1.png');    plt.show()
 
-    fig2, ax2 = plt.subplots( )
 
     ax2.set_title("Plane $p+1$")
 
@@ -43,8 +41,10 @@ def make_schematic():
     rgblabel2=label2rgb(labels2-1, bg_label=-1, colors=cols);
     ax2.imshow(rgblabel2, origin='lower', interpolation='nearest')
     ax2.add_patch(rect2)
-    plt.savefig(d.dirOutputs+'window-schematic2.png');    plt.show()
+    plt.savefig(d.dirOutputs+'window-schematic.png');    plt.show()
 make_schematic()
+
+d.dirOutputs
 #%%---------------------------6. ERROR THRESHOLD FIG -------------------------------
 def make_errorthresh_fig(skip=1):
     pID=0;prev_i=100; a,b,c=1,1,1 ;dz_b, dz_f=increments_back_forward(pID)

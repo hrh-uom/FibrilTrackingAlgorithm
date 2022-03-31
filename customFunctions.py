@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from  datetime import datetime as dt
 import os
+from tqdm import tqdm
 from a0_initialise import *
 plt.style.use('./mystyle.mplstyle')
 
@@ -61,11 +62,11 @@ def viewwindow(fID,pID, cofI,size, npix, nplanes, morphComp): #View window of se
 
 #-------------TRIM FIBRIL RECORD-------------
 
-def trim_fib_rec(FR_local, MC, dirOutputs,frac=0.9, save=True):
+def trim_fib_rec(FR_local, MC, dirOutputs,frac, save=True):
     """
     Trims fibril record to fibrils which are less than some fraction of the total number of planes
     """
-    print(f'trimming fibril record to {frac}')
+    print(f'trimming fibril record to {100*frac} percent')
     #Q: How long are all the fibrils in the original fibril rec?
     nfibs, nplanes=FR_local.shape
     nexist=np.zeros(nfibs, dtype='int')
@@ -78,9 +79,9 @@ def trim_fib_rec(FR_local, MC, dirOutputs,frac=0.9, save=True):
     longfibs=np.where(nexist>nplanes*frac)[0]  #the indices of the long fibirls
     #Erasing fibril record for short fibrils. The only way to map between the two is using longfibs. Reindexing also!
     if save:
-        np.save(dirOutputs+f'fib_rec_trim_{frac:.2f}', FR_local[longfibs])
+        np.save(dirOutputs+f'fib_rec_trim_{100*frac}', FR_local[longfibs])
         labels=label_volume(MC, np.arange(longfibs.size),FR_local[longfibs], nplanes )
-        np.save(dirOutputs+f'labelled_vol_{frac:.2f}', labels)
+        np.save(dirOutputs+f'labelled_vol_{100*frac}', labels)
     return FR_local[longfibs]
 
 #------------------ANIMATION AND VISUALISATION-----------------------------#
@@ -92,8 +93,8 @@ def label_volume(morphComp,fib_group,fib_rec,endplane, startplane=0):
     print("Labelling volume")
     labels=np.where(morphComp[startplane:endplane]==0, -1, 0).astype('int16') #turn all fibs to 0, keeping background=-1
     j=0
-    for pID in range(startplane, endplane):
-        print(f"Labelling volume {pID}") if pID in range(startplane, endplane, (endplane-startplane)//10) else 0
+    for pID in tqdm(range(startplane, endplane)):
+        # print(f"Labelling volume {pID}") if pID in range(startplane, endplane, (endplane-startplane)//10) else 0
         for i in range (len(fib_group)):
          if fib_rec[fib_group[i], pID]!=-1:
              value=fib_group[i]+1;
@@ -101,34 +102,6 @@ def label_volume(morphComp,fib_group,fib_rec,endplane, startplane=0):
         j+=1
     return labels
 
-def volume_render(labels, z1, z2, x1, x2,  pxsize,dz,dirOutputs,filename, el=40,aspect=True, show=True):
-    minivol=labels[z1:z2, x1:x2, x1:x2]#subsection
-    # minivol=volume
-    #plotting
-    fig = plt.figure(figsize=(20, 15))
-    ax=plt.axes(projection='3d')
-    whichfibs=np.unique(minivol)[np.unique(minivol)>0]
-    # print(whichfibs)
-    j=0
-    print("Volume rendering image")
-    for i in whichfibs:
-        j+=1
-        print(f"fibril {j} of {len(whichfibs)}") if j in np.arange(0, len(whichfibs), len(whichfibs//10)) else 0
-        minivol_coords=np.argwhere(minivol==i)
-        # print(minivol_coords)
-        ax.scatter(pxsize*minivol_coords[:,1]/1000, pxsize*minivol_coords[:,2]/1000, dz*minivol_coords[:,0]/1000, marker=',')
-
-    proportions=(pxsize*minivol.shape[1],pxsize*minivol.shape[2],dz*minivol.shape[0])
-    if aspect:
-        ax.set_box_aspect(proportions)  # aspect ratio is 1:1:1 in data space
-
-    ax.view_init(elev=el, azim=225)
-
-    ax.set_xlabel('x ($\mu$m)');ax.set_zlabel('z ($\mu$m)');ax.set_ylabel('y ($\mu$m)')
-    print("Saving VR rendering image")
-    plt.savefig(dirOutputs+filename+'.png')
-    if show:
-        plt.show()
 
 def create_animation(fib_group, labels, startplane, endplane, dt, fig_size=10, step=1,colourful=True):
     """
@@ -142,11 +115,12 @@ def create_animation(fib_group, labels, startplane, endplane, dt, fig_size=10, s
     container = []
     color = [tuple(np.random.random(size=3)) for i in range(len(fib_group))] #randomcolourlist
     color.insert(0,(1.,1.,1.)) #makesure other fibrils are white!!
-    print("Label2RGB")
+    print("Making Label2RGB")
     rgblabel=label2rgb(labels[startplane:endplane:step, :, :], bg_label=-1, colors=color);
     frameID=0
-    for pID in range(startplane, endplane, step):
-        print(f"animating plane {pID}")
+    print("Creating animation")
+    for pID in tqdm(range(startplane, endplane, step)):
+        # print(f"animating plane {pID}")
 
         im=ax.imshow(rgblabel[frameID], animated=True)
         plot_title = ax.text(0.5,1.05,'Plane %d of %d' % (pID, nplanes),

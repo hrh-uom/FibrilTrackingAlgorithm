@@ -9,10 +9,11 @@ from scipy.optimize import curve_fit
 plt.style.use('./mystyle.mplstyle')
 
 #---------------------USER INPUT--------------------------------------------
-desired_length=1000 #nm
-frac=np.round((desired_length/d.pxsize)/d.nP_all, 2)
-dirOutputs='/Users/user/dropbox-sym/1-NutsBolts/output/csf-695/'
+
+dirOutputs=d.dirOutputs
 abc=False
+print("a2:Fibtrack stats")
+
 #-----------.IMPORT DATA FROM FIBRIL MAPPING---------------------------------
 try:
     FR_0=np.load(dirOutputs+'fib_rec.npy') #original, import fibril record
@@ -26,12 +27,12 @@ if abc:
 md.create_Directory(dirOutputs+'stats')
 
 #-~~~~~~~~~~~~TRIM FIBRIL RECORD IF NEEDED ~~~~~~~~~~~~
-if os.path.isfile(dirOutputs+f'fib_rec_trim_{frac:.2f}.npy'):
+if os.path.isfile(dirOutputs+f'fib_rec_trim_{d.frac*100}.npy'):
     print("Loading")
-    FR=np.load(dirOutputs+f'fib_rec_trim_{frac:.2f}.npy') #original, import fibril record
+    FR=np.load(dirOutputs+f'fib_rec_trim_{d.frac*100}.npy') #original, import fibril record
 else:
     print("Trimming")
-    FR=md.trim_fib_rec(FR_0, MC, dirOutputs, frac)
+    FR=md.trim_fib_rec(FR_0, MC, dirOutputs, d.frac)
 nF, nP=FR.shape
 #%%--------------FASCICLE LENGTHS---------------------------------
 
@@ -101,7 +102,7 @@ def fascicle_travel():
     cols = np.linspace(0,100*(1+nP//100),len(x))
 
     ax.set_aspect(1)
-    ax.set_xlim(450,550);ax.set_ylim(420, 520)
+    # ax.set_xlim(450,550);ax.set_ylim(420, 520)
     points = np.array([x, y]).T.reshape(-1, 1, 2)
     segments = np.concatenate([points[:-1], points[1:]], axis=1)
     ax.set_xlabel('x (pixels)');ax.set_ylabel('y (pixels)')
@@ -169,10 +170,10 @@ def plot_fibril_lengths(lens):
     pars, cov=curve_fit(normal_pdf, lenx, leny)
     x=np.linspace(np.min(lens), np.max(lens), 1000)
     fit=[x, normal_pdf(x, pars[0], pars[1])]
-    print(f'Critical Strain. Fibril strands appear in {desired_length/1000}um of z distance')
+    print(f'Critical Strain. Fibril strands appear in {d.l_min/1000}um of z distance')
     print(f'Critical strain mean {np.mean(lens)}, sd {np.std(lens)}')
-    md.my_histogram((lens), 'Length relative to fascicle', binwidth=.005,filename=dirOutputs+f'stats/CS_dist_{desired_length}nm_{frac:.2f}.png', dens=False, fitdata=fit, fitparams=pars)
-    np.save(dirOutputs+f'stats/scaledlengths_{desired_length}nm_{frac:.2f}', lens)
+    md.my_histogram((lens), 'Length relative to fascicle', binwidth=.005,filename=dirOutputs+f'stats/CS_dist_{d.l_min}nm_{d.frac*100}.png', dens=False, fitdata=fit, fitparams=pars)
+    np.save(dirOutputs+f'stats/scaledlengths_{d.l_min}nm_{d.frac*100}', lens)
 
 plot_fibril_lengths(lens)
 
@@ -188,7 +189,7 @@ def calculate_MFDs():
         return mean,feret_planewise
 
     mfds= np.array([fibril_MFD(i, FR)[0] for i in range(nF)])
-    np.save(dirOutputs+f'mfds_{desired_length}nm_{frac:.2f}', mfds)
+    np.save(dirOutputs+f'mfds_{d.l_min}nm_{d.frac*100}', mfds)
     return mfds
 
 mfds=calculate_MFDs()
@@ -202,7 +203,7 @@ def plot_mfds():
     # fit=np.ndarray.flatten(np.array([xx, normal_pdf(xx,pars[0], pars[1])]
     fit=np.vstack([np.concatenate([xx,xx]),np.concatenate([normal_pdf(xx,pars[0], pars[1]), normal_pdf(xx,pars[2], pars[3])])])
 
-    md.my_histogram(mfds, 'Minimum Feret Diameter (nm)', dens=False,filename=dirOutputs+f'stats/MFD_dist_{desired_length}nm_{frac:.2f}.png', fitdata=False)
+    md.my_histogram(mfds, 'Minimum Feret Diameter (nm)', dens=False,filename=dirOutputs+f'stats/MFD_dist_{d.l_min}nm_{d.frac*100}.png', fitdata=False)
 
 plot_mfds()
 
@@ -232,8 +233,6 @@ pars, cov=curve_fit(lognorm_pdf, orix, oriy)
 xx=np.linspace(0.01, 60, 2000)
 fit=[xx, lognorm_pdf(xx, pars[0], pars[1])]
 
-
-from importlib import reload ; reload(md);
 md.my_histogram(oris, 'Direction relative to mean (degrees)',  dens=True,binwidth=2, pi=False,filename=dirOutputs+'/stats/orientation.png', fitdata=fit, fitparams=pars)
 
 
@@ -251,7 +250,7 @@ def fibril_area(i):
     mean = np.mean(area_planewise)
     return mean, area_planewise
 fibrilArea=np.array([fibril_area(i)[0] for i in range(nF)])
-np.save(dirOutputs+f'area_{desired_length}nm_{frac:.2f}.npy', fibrilArea)
+np.save(dirOutputs+f'area_{d.l_min}nm_{d.frac*100}.npy', fibrilArea)
 md.my_histogram(fibrilArea/100, 'Area ($10^3$ nm$^2$)', 'Cross Sectional Area of tracked fibrils', binwidth=50)
 
 
@@ -314,7 +313,7 @@ def statistical_significance():
     title=f'$H_0$, these two samples come from the same distribution. p={kstest[1]:.2f}: {result}\n Distribution limited to ({lower}, {upper}) nm'
     print(title)
 
-    # md.my_histogram([rel_tracked_FD, rel_all_FD],'Feret diameter (nm)', binwidth=20,cols=['red', 'lime'], dens=False, labels=['Tracked fibrils', 'All segments'],filename=dirOutputs+f'stats/statistical_significance_CS_dist_{desired_length}nm_{frac:.2f}.png', leg=True)
+    # md.my_histogram([rel_tracked_FD, rel_all_FD],'Feret diameter (nm)', binwidth=20,cols=['red', 'lime'], dens=False, labels=['Tracked fibrils', 'All segments'],filename=dirOutputs+f'stats/statistical_significance_CS_dist_{d.l_min}nm_{d.frac*100}.png', leg=True)
 
     fig,ax=plt.subplots(figsize=(10, 7))
     nbins=13
@@ -341,9 +340,9 @@ def statistical_significance():
     ax2.plot((edges+0.5*(edges[1]-edges[0]))[:-1][nonzero],hist_tracked[nonzero]/hist_all[nonzero], '--k')
     ax2.set_ylim(0,1.05)
     ax2.set_yticks(np.arange(0, 110, 20)/100)
-    ax2.set_ylabel('Fraction of segments captured')
+    ax2.set_ylabel('fraction of segments captured')
 
-    filename=dirOutputs+f'stats/statistical_significance_CS_dist_{desired_length}nm_{frac:.2f}.png'
+    filename=dirOutputs+f'stats/statistical_significance_CS_dist_{d.frac}.png'
     plt.savefig(filename);
     plt.show()
 
@@ -368,10 +367,10 @@ for i in range(nF_0):
     nexist_0[i]=np.max(np.nonzero(FR_0[i]>-1))-np.min(np.nonzero(FR_0[i]>-1))+1
 
 
-title_=f'Strands: {nF_0}, > {desired_length}nm in z: {nF} $\sim$ {100*nF/nF_0:.0f}%'
+title_=f'Strands: {nF_0}, > {d.l_min}nm in z: {nF} $\sim$ {100*nF/nF_0:.0f}%'
 print(title_)
-md.my_histogram(nexist_0/nP,'Fraction of planes present', binwidth=.05, filename=dirOutputs+'stats/planes_present')
-md.my_histogram(nexist/nP,'Fraction of planes present', binwidth=.05, filename=dirOutputs+'stats/planes_present_zoom')
+md.my_histogram(nexist_0/nP,'fraction of planes present', binwidth=.05, filename=dirOutputs+'stats/planes_present')
+md.my_histogram(nexist/nP,'fraction of planes present', binwidth=.05, filename=dirOutputs+'stats/planes_present_zoom')
 #%%     JUNK PLANES QUERIES
 
 def plot_fib_tops_bottoms():
@@ -390,7 +389,7 @@ def plot_fib_tops_bottoms():
     plt.ylabel('Number')
 
     for i in range(d.junk.shape[0]):
-        plt.arrow(d.junk[i],350,    0, -200,  lw=1, length_includes_head=Traue, head_width=10)
+        plt.arrow(d.junk[i],350,    0, -200,  lw=1, length_includes_head=True, head_width=10)
 
     plt.savefig(dirOutputs+'stats/fibrilends');plt.show()
 plot_fib_tops_bottoms()
