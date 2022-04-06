@@ -58,7 +58,7 @@ def load_FTA_results():
         print("Error, no fibrec found")
     try:
         path=glob.glob( d.dirOutputs + f'label*{d.frac*100}*')[0]
-        volume=np.load(path).astype(float) #original, import fibril record
+        volume=np.load(path) #original, import fibril record
         # if np.any(junk <=d.nP): #CORRECTING JUNK PLANES
         #     volume=np.delete(volume,junk[junk<=d.nP], axis=0) #deletes junk planes
     except:
@@ -118,6 +118,24 @@ def volume_render(labels, z1, z2, x1, x2,  pxsize,dz,dirOutputs,filename, el=40,
     if show:
         plt.show()
 
+
+
+#%%
+# d.dirOutputs
+# MC, FR, volume,nF=load_FTA_results()
+# labels=volume
+# fib_group=np.arange(nF)
+#
+#
+#
+# cols=np.random.randint(0, 255, (len(fib_group), 3), dtype='uint8'); cols[0]=[0,0,0]
+# RGB_vol=np.zeros((labels.shape[0], labels.shape[1], labels.shape[2], 3), dtype='uint8')
+#
+# for i in np.arange(labels.shape[0]-1):
+#     RGB_plane=cols[(volume[i]+1)] #https://forum.image.sc/t/skimage-color-label2rgb-but-choose-specific-colors-for-specific-labels/62500
+#     RGB_vol[i]=RGB_plane
+#
+#
 
 #%%-----------MAIN FLOW
 

@@ -20,7 +20,7 @@ class metadata:
         else: #MechanicsData
             self.local_input     =       f'/Users/user/dbox/2-MechanicsPaper/em/{self.dataset}/'
             self.local_output    =       f'/Users/user/dbox/2-MechanicsPaper/output-10/{self.dataset}/'
-            self.remote_input    =       f'../{self.dataset}/segmented/'
+            self.remote_input    =       f'../{self.dataset}/'
             self.remote_output   =       f'../{self.dataset}/output/'
 
         def calculate_parameters():
@@ -30,21 +30,21 @@ class metadata:
             if ('Dropbox' in os.getcwd()):              #LOCAL
                 self.dirInputs   =   self.local_input
                 self.dirOutputs  =   self.local_output
-                self.nP_all      =   len(glob.glob(self.dirInputs+'segmented/*proc*'))
+                self.nP_all      =   len(glob.glob(self.dirInputs+'segmented/*'))
                 self.end         =   10
 
             else:                                       #ON CSF
                 self.dirInputs   =   self.remote_input
                 self.dirOutputs  =   self.remote_output
-                self.nP_all      =   len(glob.glob(self.dirInputs+'segmented/*proc*'))
+                self.nP_all      =   len(glob.glob(self.dirInputs+'segmented/*'))
                 self.end         =   self.nP_all
 
             self.nP              =   self.end-self.start #Number of planes
             self.pxsize          =   pd.read_csv(glob.glob(self.dirInputs+'/*metadata*csv')[0]).pixelsize[0]
             self.junk            =   pd.read_csv(glob.glob(self.dirInputs+'/*metadata*csv')[0]).junkslices.dropna().to_numpy()
             self.dz              =   pd.read_csv(glob.glob(self.dirInputs+'/*metadata*csv')[0]).dz[0]
-            self.npix            =   Image.open(glob.glob(self.dirInputs+'/segmented/*proc*')[0]).size[0]
-            self.l_min           =   100
+            self.npix            =   Image.open(glob.glob(self.dirInputs+'/segmented/*')[0]).size[0]
+            self.l_min           =   1000
             self.frac            =   np.round((self.l_min/self.dz)/self.nP_all, 3)
         calculate_parameters()
 
@@ -53,9 +53,12 @@ def create_binary_stack(d,whitefibrils=True):
     imports images from given 3V directory
     has the option to switch based on whether the fibrils are black on a white background or vice versa
     """
-    imagePath = sorted(glob.glob(d.dirInputs+'segmented/*.tiff'))[d.start:d.end]
-    imgstack = np.array( [np.array(Image.open(img).convert('L'), dtype=np.uint16) for img in imagePath])/255
-    print("Stack Created")
+    imagePath = sorted(glob.glob(d.dirInputs+'segmented/*'))[d.start:d.end]
+    npix=(np.asarray(Image.open(imagePath[0]).convert('L'), dtype=np.uint8)//255).shape[0]
+    imgstack=np.zeros((len(imagePath), npix, npix), dtype=np.uint8)
+    print("Making image stack")
+    for i in tqdm(range(len(imagePath))):
+        imgstack[i]=np.asarray(Image.open(imagePath[i]).convert('L'), dtype=np.uint8)//255
     if whitefibrils==True:
         return imgstack
     else:
@@ -123,7 +126,7 @@ def setup_MC_props(skip=1):
     return MC, props
 
 dataset = sys.argv[1]
-# dataset='nuts-and-bolts'
+# dataset='9am-1R'
 d=metadata(dataset)
 print(f'a0: Initialising FTA for Dataset {dataset}')
 

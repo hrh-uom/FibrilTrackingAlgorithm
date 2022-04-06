@@ -102,6 +102,17 @@ def label_volume(morphComp,fib_group,fib_rec,endplane, startplane=0):
         j+=1
     return labels
 
+def custom_RGB_maker(fib_group, labels):
+    """
+    Takes a 3D array of labels and makes each label a different colour in terms of RGB [0, 0, 0] to [255, 255, 255]
+    Custom version of skimage.color.label2rgb which uses int data type to save memory
+    """
+    cols=np.random.randint(0, 255, (len(fib_group), 3), dtype='uint8'); cols[0]=[0,0,0]
+    RGB_vol=np.zeros((labels.shape[0], labels.shape[1], labels.shape[2], 3), dtype='uint8')
+    for i in np.arange(labels.shape[0]-1):
+        RGB_plane=cols[(labels[i]+1)] #https://forum.image.sc/t/skimage-color-label2rgb-but-choose-specific-colors-for-specific-labels/62500
+        RGB_vol[i]=RGB_plane
+    return RGB_vol
 
 def create_animation(fib_group, labels, startplane, endplane, dt, fig_size=10, step=1,colourful=True):
     """
@@ -112,16 +123,10 @@ def create_animation(fib_group, labels, startplane, endplane, dt, fig_size=10, s
     if endplane==0:
         endplane=nplanes
     fig, ax=plt.subplots(1, 1, figsize=(fig_size,fig_size))
-    container = []
-    color = [tuple(np.random.random(size=3)) for i in range(len(fib_group))] #randomcolourlist
-    color.insert(0,(1.,1.,1.)) #makesure other fibrils are white!!
-    print("Making Label2RGB")
-    rgblabel=label2rgb(labels[startplane:endplane:step, :, :], bg_label=-1, colors=color);
-    frameID=0
-    print("Creating animation")
+    container = [];    print("Making Label2RGB")
+    rgblabel=custom_RGB_maker(fib_group,labels[startplane:endplane:step, :, :])
+    frameID=0 ;     print("Creating animation")
     for pID in tqdm(range(startplane, endplane, step)):
-        # print(f"animating plane {pID}")
-
         im=ax.imshow(rgblabel[frameID], animated=True)
         plot_title = ax.text(0.5,1.05,'Plane %d of %d' % (pID, nplanes),
                  size=plt.rcParams["axes.titlesize"],
@@ -131,34 +136,6 @@ def create_animation(fib_group, labels, startplane, endplane, dt, fig_size=10, s
     ani = animation.ArtistAnimation(fig, container, interval=dt, blit=True)
     plt.close();
     return ani
-    #ani.save(resultsDir+title+'.mp4')
-
-def create_animation_current(fib_group, labels, startplane, endplane, dt, fig_size=10, step=1,colourful=True):
-    """
-    Create mapping animation object
-    this one doesnt work. Something to do with moving the RGB label line
-    """
-    nplanes=labels.shape[0]
-    if endplane==0:
-        endplane=nplanes
-    fig, ax=plt.subplots(1, 1, figsize=(fig_size,fig_size))
-    container = []
-    color = [tuple(np.random.random(size=3)) for i in range(len(fib_group))] #randomcolourlist
-    color.insert(0,(1.,1.,1.)) #makesure other fibrils are white!!
-    frameID=0
-    for pID in range(startplane, endplane, step):
-        print(f"animating plane {pID}")
-        rgblabel=label2rgb(labels[pID, :, :], bg_label=-1, colors=color);
-        im=ax.imshow(rgblabel, animated=True)
-        plot_title = ax.text(0.5,1.05,'Plane %d of %d' % (pID, nplanes),
-                 size=plt.rcParams["axes.titlesize"],
-                 ha="center", transform=ax.transAxes, )
-        container.append([im, plot_title])
-        frameID+=1;
-    ani = animation.ArtistAnimation(fig, container, interval=dt, blit=True)
-    plt.close();
-    return ani
-    #ani.save(resultsDir+title+'.mp4')
 
 def export_animation(resultsDir,fib_group, labels, title='volumerendering/stepthrough-animation', startplane=0, endplane=0, dt=500, figsize=20,step=1):
     ani=create_animation(fib_group, labels, startplane, endplane, dt, figsize , step)
@@ -170,17 +147,6 @@ def animation_inline(fib_group, labels, startplane=0, endplane=0, dt=500, figsiz
     ani=create_animation(fib_group, labels, startplane, endplane, dt, figsize, step)
     return HTML(ani.to_html5_video())
 
-def red_objects_1_plane(obj_group, pID):
- """
- Please feed object numbers (inplane) not fibril numbers
- """
- labels=morphComp[pID].copy()
- for i in range(obj_group.size):
-     value=obj_group[i]
-     labels=np.where(morphComp[pID]==value+1, -1, labels)
- labels=np.where(labels>0, 1, labels)
- rgblabel=label2rgb(labels, bg_label=0, colors=[(1, 0, 0), (1, 1, 1)])
- plt.imshow(rgblabel)
 
 #---------------PLOTS-------------------
 def my_histogram(arr,xlabel, dens=False, title=0, labels=[], binwidth=10, xlims=0, pi=False,filename=0, leg=False, fitdata=0, fitparams=0):
