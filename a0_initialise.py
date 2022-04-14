@@ -5,21 +5,22 @@ import pandas as pd
 from tqdm import tqdm
 from PIL import Image
 from skimage.measure import label, regionprops,regionprops_table
-from skimage.color import label2rgb
 from feret_diameter import feret_diameters_2d
 
 class metadata:
     def __init__(self, name):
         self.dataset = name    # instance variable unique to each instance
+        self.end         =   10
+
         if self.dataset=='nuts-and-bolts':
 
             self.local_input    =       '/Users/user/dropbox-sym/1-NutsBolts/em/'
-            self.local_output   =       '/Users/user/dropbox-sym/1-NutsBolts/output/local_results_0_10/'
+            self.local_output   =       f'/Users/user/dropbox-sym/1-NutsBolts/output/local_results_0_{self.end}/'
             self.remote_input   =       '../nuts-and-bolts/three-view/'
             self.remote_output  =       '../nuts-and-bolts/results_0_695/'
         else: #MechanicsData
             self.local_input     =       f'/Users/user/dbox/2-MechanicsPaper/em/{self.dataset}/'
-            self.local_output    =       f'/Users/user/dbox/2-MechanicsPaper/output-10/{self.dataset}/'
+            self.local_output    =       f'/Users/user/dbox/2-MechanicsPaper/output-{self.end}/{self.dataset}/'
             self.remote_input    =       f'../{self.dataset}/'
             self.remote_output   =       f'../{self.dataset}/output/'
 
@@ -31,7 +32,7 @@ class metadata:
                 self.dirInputs   =   self.local_input
                 self.dirOutputs  =   self.local_output
                 self.nP_all      =   len(glob.glob(self.dirInputs+'segmented/*'))
-                self.end         =   10
+
 
             else:                                       #ON CSF
                 self.dirInputs   =   self.remote_input
@@ -54,11 +55,16 @@ def create_binary_stack(d,whitefibrils=True):
     has the option to switch based on whether the fibrils are black on a white background or vice versa
     """
     imagePath = sorted(glob.glob(d.dirInputs+'segmented/*'))[d.start:d.end]
-    npix=(np.asarray(Image.open(imagePath[0]).convert('L'), dtype=np.uint8)//255).shape[0]
+    npix=np.asarray(Image.open(imagePath[0])).shape[0]
     imgstack=np.zeros((len(imagePath), npix, npix), dtype=np.uint8)
     print("Making image stack")
     for i in tqdm(range(len(imagePath))):
-        imgstack[i]=np.asarray(Image.open(imagePath[i]).convert('L'), dtype=np.uint8)//255
+        # print(imagePath[i])
+        plane=np.asarray(Image.open(imagePath[i]))
+        # print (type(plane))
+        # print (f'size = {plane.nbytes}')
+        imgstack[i]=plane//255
+        # print(f'size = {plane.nbytes}')
     if whitefibrils==True:
         return imgstack
     else:
@@ -101,6 +107,7 @@ def create_properties_table(MC):
     np.save(d.dirOutputs+'props', props)
     return props
     #return temp.shape
+
 def create_Directory(directory):
     """
     Tests for existence of directory then creates one if not
@@ -121,13 +128,22 @@ def setup_MC_props(skip=1):
         if skip>1:
             compress_by_skipping(skip)
         MC=create_morph_comp(imgstack)
-        # print(f'imgstack shape {imgstack.shape}')
         props=create_properties_table(MC)
+        # props=1
     return MC, props
 
 dataset = sys.argv[1]
-# dataset='9am-1R'
+# dataset='9AM-1R'
 d=metadata(dataset)
 print(f'a0: Initialising FTA for Dataset {dataset}')
 
 MC, props=setup_MC_props()
+
+
+#%%
+
+# i=np.random.randint(0, d.nP)
+# # i=45;
+# print(f'i = {i}')
+# print(feret_diameters_2d(MC[i]))
+# props[80, 22]

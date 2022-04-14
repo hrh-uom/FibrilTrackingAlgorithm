@@ -11,11 +11,12 @@ def make_schematic():
     labels=np.where(MC[pID]==fID+1,fID+1, labels)
     labels.shape
     np.unique(labels)
-    cols = ['grey', 'red', 'orange', 'blue', 'yellow', 'purple']
+    cols = ['grey', 'red', 'black', 'blue', 'yellow', 'purple']
     rgblabel=label2rgb(labels-1, bg_label=-1, colors=cols);
     cofI=props[pID, fID, 0:2]
-    xy=md.search_window(cofI, d.npix/10, d.npix)[:,0].tolist();
-    recsize=np.ndarray.flatten(np.diff(md.search_window(cofI, d.npix/10, d.npix))).tolist();
+    MFDofI=props[pID, fID, 5]
+    xy=md.search_window(cofI, MFDofI*5, d.npix)[:,0].tolist();
+    recsize=np.ndarray.flatten(np.diff(md.search_window(cofI, MFDofI*5, d.npix))).tolist();
     fig1, (ax1, ax2) = plt.subplots( 1, 2  )
     ax1.imshow(rgblabel, origin='lower', interpolation='nearest')
     # plt.title('fID %i. Plane %i of %i. Size %i' % (fID,pID+1, nplanes, d.npix/10))
@@ -33,7 +34,7 @@ def make_schematic():
 
     ax2.set_title("Plane $p+1$")
 
-    index=np.ndarray.flatten(md.search_window(cofI, d.npix/10, d.npix)).astype('int')
+    index=np.ndarray.flatten(md.search_window(cofI, MFDofI*5, d.npix)).astype('int')
     compare_me=np.delete(np.unique(np.ndarray.flatten(MC[pID+1,index[0]:index[1], index[2]:index[3]]-1) ),0)
     labels2=10*ministack[1]
     for fID in compare_me:

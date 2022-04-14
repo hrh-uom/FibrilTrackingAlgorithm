@@ -14,32 +14,6 @@ from tqdm import tqdm
 plt.style.use('./mystyle.mplstyle')
 
 print("b2: Volume rendering")
-def load_FTA_results_rough():
-    md.create_Directory(d.dirOutputs+'/volumerendering')
-    try:
-        path=glob.glob( d.dirOutputs + 'morphComp*')[0];
-        MC=np.load(path) #original, import fibril record
-    except:
-        print("Error, no MC found")
-    try:
-        path=glob.glob( d.dirOutputs + 'fib_rec*')[0];
-        FR=np.load(path) #original, import fibril record
-    except:
-        FR=0
-        print("Error, no fibrec found")
-    nF=FR.shape[0];print(f'nF={nF}')
-    try:
-        volume=md.label_volume(MC,np.arange(nF),FR,d.nP)
-        if np.any(d.junk <=d.nP): #CORRECTING JUNK PLANES
-            volume=np.delete(volume,d.junk[d.junk<=d.nP], axis=0) #deletes junk planes
-        # print (d.dirOutputs+f'labelled_vol_{d.frac:.2f}')
-        np.save(d.dirOutputs+f'labelled_vol_{100*d.frac}', volume)
-    except:
-        volume=0
-        print("Error, no labelled volume found")
-
-    return MC, FR, volume, nF
-# MC, FR, volume,d.frac=load_FTA_results_rough()
 
 def load_FTA_results():
     md.create_Directory(d.dirOutputs+'/volumerendering')
@@ -65,11 +39,10 @@ def load_FTA_results():
         volume=0
         print("Error, no labelled volume found")
     return MC, FR, volume, nF
-# MC, FR, volume,d.frac=load_FTA_results()
 #%%----------------STEP THROUGH ANIMATION ---------------------------------
 
 def stepthrough():
-    md.export_animation(d.dirOutputs, np.arange(nF) ,volume,dt=100,step=1)
+    md.export_animation(d.dirOutputs, np.arange(nF) ,volume,dt=100,step=3)
 
 #%%----------------MID -PLANE IMAGE------------------------------------------
 def midPlaneImage():
@@ -84,7 +57,7 @@ def midPlaneImage():
     ax.set_xlabel('x ($\mu$m)');ax.set_ylabel('y ($\mu$m)')
     plt.imshow(label2rgb(volume[int(d.nP/2)], bg_label=-1,colors=color), extent=[0,d.npix*d.pxsize/1000,0, d.npix*d.pxsize/1000])
     plt.savefig(d.dirOutputs+'volumerendering/mid-stack-img');
-    plt.show()
+    # plt.show()
 # midPlaneImage()
 
 #%%------------------VOLUME RENDERING------------------------------------------
@@ -118,24 +91,6 @@ def volume_render(labels, z1, z2, x1, x2,  pxsize,dz,dirOutputs,filename, el=40,
     if show:
         plt.show()
 
-
-
-#%%
-# d.dirOutputs
-# MC, FR, volume,nF=load_FTA_results()
-# labels=volume
-# fib_group=np.arange(nF)
-#
-#
-#
-# cols=np.random.randint(0, 255, (len(fib_group), 3), dtype='uint8'); cols[0]=[0,0,0]
-# RGB_vol=np.zeros((labels.shape[0], labels.shape[1], labels.shape[2], 3), dtype='uint8')
-#
-# for i in np.arange(labels.shape[0]-1):
-#     RGB_plane=cols[(volume[i]+1)] #https://forum.image.sc/t/skimage-color-label2rgb-but-choose-specific-colors-for-specific-labels/62500
-#     RGB_vol[i]=RGB_plane
-#
-#
 
 #%%-----------MAIN FLOW
 

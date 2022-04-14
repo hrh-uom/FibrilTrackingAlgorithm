@@ -5,35 +5,46 @@ import customFunctions as md
 from scipy import stats
 import glob , os
 import pandas as pd
+from tqdm import tqdm
 from scipy.optimize import curve_fit
 plt.style.use('./mystyle.mplstyle')
 
 #---------------------USER INPUT--------------------------------------------
 
-dirOutputs=d.dirOutputs
-abc=False
+abc=False; csf=False
 print("a2:Fibtrack stats")
 
 #-----------.IMPORT DATA FROM FIBRIL MAPPING---------------------------------
-try:
+
+if csf==False:
+    try:
+        dirOutputs=d.dirOutputs
+        FR_0=np.load(dirOutputs+'fib_rec.npy') #original, import fibril record
+        MC=np.load(dirOutputs+'morphComp.npy')
+        props=np.load(dirOutputs+'props.npy')
+    except:
+        print("Error, no fibrec, MC, props found")
+    #-~~~~~~~~~~~~TRIM FIBRIL RECORD IF NEEDED ~~~~~~~~~~~~
+    if os.path.isfile(dirOutputs+f'fib_rec_trim_{d.frac*100}.npy'):
+        print("Loading")
+        FR=np.load(dirOutputs+f'fib_rec_trim_{d.frac*100}.npy') #original, import fibril record
+    else:
+        print("Trimming")
+        FR=md.trim_fib_rec(FR_0, MC, dirOutputs, d.frac)
+else:
+    dirOutputs='/Users/user/Dropbox (The University of Manchester)/1-NutsBolts/output/csf-695/'
     FR_0=np.load(dirOutputs+'fib_rec.npy') #original, import fibril record
     MC=np.load(dirOutputs+'morphComp.npy')
     props=np.load(dirOutputs+'props.npy')
-except:
-    print("Error, no fibrec, MC, props found")
+    FR=np.load(dirOutputs+'fib_rec_trim_0.14.npy')
 if abc:
     FR_0=np.load('/Users/user/Dropbox (The University of Manchester)/fibril-tracking/nuts-and-bolts/csf-output/abc-dec21/rank0/fibrec_rank_0_a_1.00_b_2.70_c_2.85.npy')
     dirOutputs='/Users/user/Dropbox (The University of Manchester)/fibril-tracking/nuts-and-bolts/csf-output/abc-dec21/rank0/'
-md.create_Directory(dirOutputs+'stats')
 
-#-~~~~~~~~~~~~TRIM FIBRIL RECORD IF NEEDED ~~~~~~~~~~~~
-if os.path.isfile(dirOutputs+f'fib_rec_trim_{d.frac*100}.npy'):
-    print("Loading")
-    FR=np.load(dirOutputs+f'fib_rec_trim_{d.frac*100}.npy') #original, import fibril record
-else:
-    print("Trimming")
-    FR=md.trim_fib_rec(FR_0, MC, dirOutputs, d.frac)
+
+md.create_Directory(dirOutputs+'stats')
 nF, nP=FR.shape
+
 #%%--------------FASCICLE LENGTHS---------------------------------
 
 def fascicleCoord(pID):
@@ -78,13 +89,13 @@ def calculate_fascicle_length():
     """
     Calculate the arclength of the fascile
     """
-    fas_coord_list=[]
-    for pID in range (nP-1):
+    fas_coord=[]
+    for pID in range (nP):
         if np.isin(pID, d.junk)==False:
-            fas_coord_list.append(fascicleCoord(pID))
-    fas_len=coOrds_to_length(np.array(fas_coord_list))
-    return fas_len, fas_coord_list
-fas_len, fas_coord_list=calculate_fascicle_length()
+            fas_coord.append(fascicleCoord(pID))
+    fas_len=coOrds_to_length(np.array(fas_coord))
+    return fas_len, np.array(fas_coord)
+fas_len, fas_coord=calculate_fascicle_length()
 
 
 #%% WHERE IS THE FASCICLE GOING
@@ -92,16 +103,12 @@ fas_len, fas_coord_list=calculate_fascicle_length()
 def fascicle_travel():
     import matplotlib.cm as cm
     from matplotlib.collections import LineCollection
-
-
     fig, ax=plt.subplots(figsize=(10,10))
-
-    fas_arr=np.array(fas_coord_list)
-    x=fas_arr[:,0]/d.pxsize
-    y=fas_arr[:,1]/d.pxsize
+    x=fas_coord[:,0]/d.pxsize
+    y=fas_coord[:,1]/d.pxsize
     cols = np.linspace(0,100*(1+nP//100),len(x))
 
-    ax.set_aspect(1)
+    # ax.set_aspect(1)
     # ax.set_xlim(450,550);ax.set_ylim(420, 520)
     points = np.array([x, y]).T.reshape(-1, 1, 2)
     segments = np.concatenate([points[:-1], points[1:]], axis=1)
@@ -153,16 +160,15 @@ def calculate_fibril_lengths():
     nexist=np.zeros(nF, dtype='int')
     for i in range(nF):
         nexist[i]=np.max(np.nonzero(FR[i]>-1))-np.min(np.nonzero(FR[i]>-1))+1
-
-
     lens=np.zeros(nF)  #worm like length / n planes present
-    for i in range (nF):
-        lens[i]=coOrds_to_length(fibCoords(i)[0])
-    lens*=nP/(fas_len*nexist)
+    fas_coord_inc_junk=np.array([fascicleCoord(j) for j in range(nP)])
+    for i in tqdm(range (nF)):
+        fib_exist_in=np.argwhere(fibCoords(i)[1][:,0]>0 ).T [0]#Indices of where fibril exists
+        faslen_rel=coOrds_to_length(fas_coord_inc_junk[fib_exist_in])
+
+        lens[i]=coOrds_to_length(fibCoords(i)[0])/faslen_rel
     return lens, nexist
-
-lens, nexist=calculate_fibril_lengths()
-
+lens,nexist=calculate_fibril_lengths()
 def plot_fibril_lengths(lens):
 
     leny, lenx=np.histogram(lens, bins=50, density=True)
@@ -193,18 +199,32 @@ def calculate_MFDs():
     return mfds
 
 mfds=calculate_MFDs()
+from importlib import reload ; reload(md);
 
-
-def plot_mfds():
+def plot_mfds(bi=True):
     mfdy, mfdx=np.histogram(mfds, bins=30, density=True)
     mfdx=(mfdx+np.diff(mfdx)[0]/2)[: -1]
-    pars, cov=curve_fit(bi_pdf, mfdx, mfdy, bounds=([0, 75, 0, 200],[np.inf, 175, np.inf, 250]))
     xx=np.linspace(np.min(mfds), np.max(mfds), 1000)
-    # fit=np.ndarray.flatten(np.array([xx, normal_pdf(xx,pars[0], pars[1])]
-    fit=np.vstack([np.concatenate([xx,xx]),np.concatenate([normal_pdf(xx,pars[0], pars[1]), normal_pdf(xx,pars[2], pars[3])])])
 
-    md.my_histogram(mfds, 'Minimum Feret Diameter (nm)', dens=False,filename=dirOutputs+f'stats/MFD_dist_{d.l_min}nm_{d.frac*100}.png', fitdata=False)
+    if bi:
+        u1_b=[75, 175];     s1_b=[0, np.inf]
+        u2_b=[175, 250];    s2_b=[0, np.inf]
 
+        pars, cov=curve_fit(bi_pdf, mfdx, mfdy, bounds=([s1_b[0], u1_b[0], s2_b[0], u2_b[0]],[s1_b[1], u1_b[1], s2_b[1], u2_b[1]]))
+        fit=[xx, bi_pdf(xx,pars[0], pars[1], pars[2], pars[3])]
+        # fit=np.vstack([np.concatenate([xx,xx]),np.concatenate([normal_pdf(xx,pars[0], pars[1]), normal_pdf(xx,pars[2], pars[3])])])
+    else:
+        u1_b=[75, 175];     s1_b=[0, np.inf]
+        u2_b=[100, 175];    s2_b=[0, np.inf]
+        u3_b=[200, 250];    s3_b=[0, np.inf]
+        # u1_b=[0, np.inf];     s1_b=[0, np.inf]
+        # u2_b=[0, np.inf];    s2_b=[0, np.inf]
+        # u3_b=[0, np.inf];    s3_b=[0, np.inf]
+
+        pars, cov=curve_fit(tri_pdf, mfdx, mfdy, bounds=([s1_b[0], u1_b[0], s2_b[0], u2_b[0], s3_b[0], u3_b[0]],[s1_b[1], u1_b[1], s2_b[1], u2_b[1], s3_b[1], u3_b[1]]))
+        fit=[xx, tri_pdf(xx,pars[0], pars[1], pars[2], pars[3], pars[4], pars[5])]
+
+    md.my_histogram(mfds, 'Minimum Feret Diameter (nm)', dens=False,filename=dirOutputs+f'stats/MFD_dist_{d.l_min}nm_{d.frac*100}_bimodal.png', fitdata=fit, binwidth=5,fitparams=np.around(pars, 1))
 plot_mfds()
 
 #%%----------------Orientation
