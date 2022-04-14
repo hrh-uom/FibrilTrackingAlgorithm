@@ -91,12 +91,16 @@ def fibril_mapping(a,b,c, MC, FR_local, skip=1, FRFname='fib_rec'):
             #Isolating the relevant 'patch in morphological components
             if FR_local[fID,pID]!=-1: # catching nonexistent fibrils, true in pID>0
                 cofI=props[pID,FR_local[fID,pID],0:2]#centroid of fibril in plane
-                index=np.ndarray.flatten(md.search_window(cofI, d.npix/10, d.npix)).astype('int')
-
-                compare_me=np.delete(np.unique(np.ndarray.flatten(MC[pID+dz_f,index[0]:index[1], index[2]:index[3]]-1) ),0) #find a more neat way to do this. List of indices in next slice to look at.
-                for j in compare_me: #going through relevant segments in next slice
-                    # print(f"Compare me {j}")
-                    err_table[fID,j]=err(pID, FR_local[fID,pID], FR_local[fID,pID-dz_b], j,dz_b, dz_f, a, b, c)
+                MFDofI=props[pID,FR_local[fID,pID],5]#MFD of fibril in plane
+                if MFDofI>0:
+                    index=np.ndarray.flatten(md.search_window(cofI, MFDofI*5, d.npix)).astype('int')
+                    compare_me=np.delete(np.unique(np.ndarray.flatten(MC[pID+dz_f,index[0]:index[1], index[2]:index[3]]-1) ),0) #find a more neat way to do this. List of indices in next slice to look at.
+                    for j in compare_me: #going through relevant segments in next slice
+                        # print(f"Compare me {j}")
+                        err_table[fID,j]=err(pID, FR_local[fID,pID], FR_local[fID,pID-dz_b], j,dz_b, dz_f, a, b, c)
+                else:
+                    #Ignoring fibrils that are erroneous in feret_diameter.py line 67
+                    continue
 
         #sorted lists of the errors and the pairs of i,j which yield these Errors
         sort_errs=sort_errs=np.sort(err_table, axis=None)
