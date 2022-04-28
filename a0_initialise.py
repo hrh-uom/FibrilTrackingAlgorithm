@@ -8,35 +8,43 @@ from skimage.measure import label, regionprops,regionprops_table
 from feret_diameter import feret_diameters_2d
 
 class metadata:
-    def __init__(self, name):
-        self.dataset = name    # instance variable unique to each instance
-        self.end         =   10
+    def __init__(self, name, minirun):
+        self.dataset        = name    # instance variable unique to each instance
+        self.test           = minirun
+
 
         if self.dataset=='nuts-and-bolts':
-
-            self.local_input    =       '/Users/user/dropbox-sym/1-NutsBolts/em/'
-            self.local_output   =       f'/Users/user/dropbox-sym/1-NutsBolts/output/local_results_0_{self.end}/'
-            self.remote_input   =       '../nuts-and-bolts/three-view/'
-            self.remote_output  =       '../nuts-and-bolts/results_0_695/'
+            self.end            =   10
+            self.local_input    =       '/Users/user/dbox/1-NutsBolts/em/'
+            self.local_output   =       f'/Users/user/dbox/1-NutsBolts/output/local_results_0_{self.end}/'
+            self.local_csf_out   =      f'/Users/user/dbox/1-NutsBolts/output/csf-695/'
+            self.remote_input   =       '../nuts-and-bolts/'
+            self.remote_output  =       '../nuts-and-bolts/'
         else: #MechanicsData
+            self.end            =   25
             self.local_input     =       f'/Users/user/dbox/2-MechanicsPaper/em/{self.dataset}/'
             self.local_output    =       f'/Users/user/dbox/2-MechanicsPaper/output-{self.end}/{self.dataset}/'
+            self.local_csf_out   =       f'/Users/user/dbox/2-MechanicsPaper/csf-output/{self.dataset}/'
             self.remote_input    =       f'../{self.dataset}/'
             self.remote_output   =       f'../{self.dataset}/output/'
 
         def calculate_parameters():
             self.start               =       0
-
-
             if ('Dropbox' in os.getcwd()):              #LOCAL
                 self.dirInputs   =   self.local_input
-                self.dirOutputs  =   self.local_output
                 self.nP_all      =   len(glob.glob(self.dirInputs+'segmented/*'))
 
+                if self.test:                #TESTING FROM SCRATCH
+                    self.dirOutputs  =   self.local_output
+                else:               #LOCALLY TESTING CSF RESULTS
+                    print('Using data from remote server')
+                    self.dirOutputs  =   self.local_csf_out
+                    self.end         =   self.nP_all
 
             else:                                       #ON CSF
                 self.dirInputs   =   self.remote_input
                 self.dirOutputs  =   self.remote_output
+                print (f'The output directory is {self.dirOutputs}')
                 self.nP_all      =   len(glob.glob(self.dirInputs+'segmented/*'))
                 self.end         =   self.nP_all
 
@@ -45,8 +53,12 @@ class metadata:
             self.junk            =   pd.read_csv(glob.glob(self.dirInputs+'/*metadata*csv')[0]).junkslices.dropna().to_numpy()
             self.dz              =   pd.read_csv(glob.glob(self.dirInputs+'/*metadata*csv')[0]).dz[0]
             self.npix            =   Image.open(glob.glob(self.dirInputs+'/segmented/*')[0]).size[0]
-            self.l_min           =   1000
-            self.frac            =   np.round((self.l_min/self.dz)/self.nP_all, 3)
+            if self.test:
+                self.frac        =   0.5
+                self.l_min       =    self.frac*self.dz*self.nP_all
+            else:
+                self.l_min           =   10000
+                self.frac            =   np.round((self.l_min/self.dz)/self.nP_all, 3)
         calculate_parameters()
 
 def create_binary_stack(d,whitefibrils=True):
@@ -132,14 +144,19 @@ def setup_MC_props(skip=1):
         # props=1
     return MC, props
 
-dataset = sys.argv[1]
-# dataset='9AM-1R'
-d=metadata(dataset)
+if ('Dropbox' in os.getcwd()):
+    minirun=True
+    dataset='9am-2L' # dataset='nuts-and-bolts'
+else:
+    dataset = sys.argv[1]
+    try:
+        minirun = sys.argv[2]
+    except:
+        minirun = False
+
+d=metadata(dataset,minirun)
 print(f'a0: Initialising FTA for Dataset {dataset}')
-
 MC, props=setup_MC_props()
-
-
 #%%
 
 # i=np.random.randint(0, d.nP)
