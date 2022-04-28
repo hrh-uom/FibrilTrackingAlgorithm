@@ -10,3 +10,4 @@ figure.titlesize : 24
 savefig.facecolor : white
 savefig.bbox : tight
 savefig.pad_inches : 0
+animation.embed_limit : 209715200.
