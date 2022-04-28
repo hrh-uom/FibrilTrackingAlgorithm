@@ -11,32 +11,26 @@ plt.style.use('./mystyle.mplstyle')
 
 #---------------------USER INPUT--------------------------------------------
 
-abc=False; csf=False
+abc=False;
 print("a2:Fibtrack stats")
 
 #-----------.IMPORT DATA FROM FIBRIL MAPPING---------------------------------
 
-if csf==False:
-    try:
-        dirOutputs=d.dirOutputs
-        FR_0=np.load(dirOutputs+'fib_rec.npy') #original, import fibril record
-        MC=np.load(dirOutputs+'morphComp.npy')
-        props=np.load(dirOutputs+'props.npy')
-    except:
-        print("Error, no fibrec, MC, props found")
-    #-~~~~~~~~~~~~TRIM FIBRIL RECORD IF NEEDED ~~~~~~~~~~~~
-    if os.path.isfile(dirOutputs+f'fib_rec_trim_{d.frac*100}.npy'):
-        print("Loading")
-        FR=np.load(dirOutputs+f'fib_rec_trim_{d.frac*100}.npy') #original, import fibril record
-    else:
-        print("Trimming")
-        FR=md.trim_fib_rec(FR_0, MC, dirOutputs, d.frac)
-else:
-    dirOutputs='/Users/user/Dropbox (The University of Manchester)/1-NutsBolts/output/csf-695/'
+try:
+    dirOutputs=d.dirOutputs
     FR_0=np.load(dirOutputs+'fib_rec.npy') #original, import fibril record
     MC=np.load(dirOutputs+'morphComp.npy')
     props=np.load(dirOutputs+'props.npy')
-    FR=np.load(dirOutputs+'fib_rec_trim_0.14.npy')
+except:
+    print("Error, no fibrec, MC, props found")
+#-~~~~~~~~~~~~TRIM FIBRIL RECORD IF NEEDED ~~~~~~~~~~~~
+try:
+    print("Loading trimmed FR")
+    FR=np.load(glob.glob(dirOutputs+f'fib_rec_trim*')[0])
+except:
+    print("Trimming")
+    FR=md.trim_fib_rec(FR_0, MC, dirOutputs, d.frac)
+labels=np.load(glob.glob(dirOutputs+'label*')[0])
 if abc:
     FR_0=np.load('/Users/user/Dropbox (The University of Manchester)/fibril-tracking/nuts-and-bolts/csf-output/abc-dec21/rank0/fibrec_rank_0_a_1.00_b_2.70_c_2.85.npy')
     dirOutputs='/Users/user/Dropbox (The University of Manchester)/fibril-tracking/nuts-and-bolts/csf-output/abc-dec21/rank0/'
@@ -44,6 +38,7 @@ if abc:
 
 md.create_Directory(dirOutputs+'stats')
 nF, nP=FR.shape
+
 
 #%%--------------FASCICLE LENGTHS---------------------------------
 
@@ -96,20 +91,18 @@ def calculate_fascicle_length():
     fas_len=coOrds_to_length(np.array(fas_coord))
     return fas_len, np.array(fas_coord)
 fas_len, fas_coord=calculate_fascicle_length()
-
-
 #%% WHERE IS THE FASCICLE GOING
 
 def fascicle_travel():
     import matplotlib.cm as cm
     from matplotlib.collections import LineCollection
-    fig, ax=plt.subplots(figsize=(10,10))
+    fig, ax=plt.subplots(figsize=(5,5))
     x=fas_coord[:,0]/d.pxsize
     y=fas_coord[:,1]/d.pxsize
     cols = np.linspace(0,100*(1+nP//100),len(x))
 
     # ax.set_aspect(1)
-    # ax.set_xlim(450,550);ax.set_ylim(420, 520)
+    ax.set_xlim(600,800);ax.set_ylim(600, 800)
     points = np.array([x, y]).T.reshape(-1, 1, 2)
     segments = np.concatenate([points[:-1], points[1:]], axis=1)
     ax.set_xlabel('x (pixels)');ax.set_ylabel('y (pixels)')
@@ -117,7 +110,6 @@ def fascicle_travel():
     lc.set_array(cols); lc.set_linewidth(2)
     line = ax.add_collection(lc)
     fig.colorbar(line,fraction=0.046, pad=0.04)
-
     plt.savefig(dirOutputs+'stats/fascicle-travel.png',bbox_inches='tight' ,pad_inches = 0);plt.show()
 fascicle_travel()
 
@@ -151,9 +143,7 @@ def tri_pdf(x, s1, u1, s2, u2, s3, u3):
     """
     return (normal_pdf(x, s1, u1) + normal_pdf(x, s2, u2)+normal_pdf(x, s3, u3))/3
 
-
 #%%------------------Fibril Length
-
 def calculate_fibril_lengths():
     #Calculate length of each fibril
     #Q: How long are all the fibrils in the fibril rec?
@@ -165,7 +155,6 @@ def calculate_fibril_lengths():
     for i in tqdm(range (nF)):
         fib_exist_in=np.argwhere(fibCoords(i)[1][:,0]>0 ).T [0]#Indices of where fibril exists
         faslen_rel=coOrds_to_length(fas_coord_inc_junk[fib_exist_in])
-
         lens[i]=coOrds_to_length(fibCoords(i)[0])/faslen_rel
     return lens, nexist
 lens,nexist=calculate_fibril_lengths()
@@ -253,7 +242,7 @@ pars, cov=curve_fit(lognorm_pdf, orix, oriy)
 xx=np.linspace(0.01, 60, 2000)
 fit=[xx, lognorm_pdf(xx, pars[0], pars[1])]
 
-md.my_histogram(oris, 'Direction relative to mean (degrees)',  dens=True,binwidth=2, pi=False,filename=dirOutputs+'/stats/orientation.png', fitdata=fit, fitparams=pars)
+md.my_histogram(oris, f'Fibril alignment ($\degree$) ',  dens=False,binwidth=2, pi=False,filename=dirOutputs+'/stats/orientation.png', fitdata=fit, fitparams=pars)
 
 
 #%% ------------------------Area of each fibrils
