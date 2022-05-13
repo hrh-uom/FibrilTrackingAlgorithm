@@ -8,10 +8,68 @@ from skimage.measure import label, regionprops,regionprops_table
 from feret_diameter import feret_diameters_2d
 
 class metadata:
-    def __init__(self, name, minirun):
+    """
+    everything about the run and the dataset, to be used in a1-3
+
+    Attributes:
+    ----------
+    dataset : string
+        which dataset to examine
+    test : bool
+        whether or not we are testing on a small volume or executing for a full volume
+    start : int
+        which plane to start mapping from
+    end : int
+        which plane to finish on
+    nP_all : int
+        how many planes there are in this dataset (number of images)
+    nP : int
+        how many planes are being used in this run = end-start
+    pxsize : float
+        the pixel size in the image, read off the metadata file included with the EM images
+    dz : float
+        the spacing of planes in z, read off the metadata file included with the EM images
+    junk : np.array
+        planes which are to be discarded, read off the metadata file included with the EM images
+    frac : float
+        fraction of planes to be included to meet desired l_min
+    l_min : float
+        minimum length of tracked fibril to be included. This is not an arclength but a distance in z.
+    a : float
+        alpha - weighting for centroid error
+    b : float
+        beta - weighting for area error
+    c : float
+        gamma - weighting for MFD error
+    threshfactor : float
+        vary this to increase the error threshold. Default =1
+    local_input : string (path)
+        where are the EM files stored locally for this dataset
+    local_output: string (path)
+        where to write results to locally
+    local_csf_out: string (path)
+        where results and outputs from a remote run are stored locally
+    remote_input: string (path)
+        where are the EM files stored remotely for this dataset
+    remote_output: string (path)
+        where to write results to remotely
+
+
+    dirOutputs: string (path)
+        set as one of local_output, local_csf_out, remote_output, chosen by if statements
+    dirInputs: string (path)
+        set as one of local_input local_output depending on setup
+
+
+    """
+    def __init__(self, name, minirun, a, b, c, T):
         self.dataset        = name    # instance variable unique to each instance
         self.test           = minirun
 
+        self.a               =   a
+        self.b               =   b
+        self.c               =   c
+        self.threshfactor    =   T
 
         if self.dataset=='nuts-and-bolts':
             self.end            =   10
@@ -19,16 +77,19 @@ class metadata:
             self.local_output   =       f'/Users/user/dbox/1-NutsBolts/output/local_results_0_{self.end}/'
             self.local_csf_out   =      f'/Users/user/dbox/1-NutsBolts/output/csf-695/'
             self.remote_input   =       '../nuts-and-bolts/'
-            self.remote_output  =       '../nuts-and-bolts/'
+            self.remote_output  =       '../nuts-and-bolts/output/'
         else: #MechanicsData
-            self.end            =   25
-            self.local_input     =       f'/Users/user/dbox/2-MechanicsPaper/em/{self.dataset}/'
-            self.local_output    =       f'/Users/user/dbox/2-MechanicsPaper/output-{self.end}/{self.dataset}/'
-            self.local_csf_out   =       f'/Users/user/dbox/2-MechanicsPaper/csf-output/{self.dataset}/'
+            self.end            =   10
+            self.local_input     =       f'/Users/user/dbox/2-mechanics-model/em/{self.dataset}/'
+            self.local_output    =       f'/Users/user/dbox/2-mechanics-model/output-{self.end}/{self.dataset}/a{self.a}_b{self.b}_c{self.c}_T{self.threshfactor}/'
+            self.local_csf_out   =       f'/Users/user/dbox/2-mechanics-model/csf-output/{self.dataset}/a{self.a}_b{self.b}_c{self.c}_T{self.threshfactor}/'
             self.remote_input    =       f'../{self.dataset}/'
-            self.remote_output   =       f'../{self.dataset}/output/'
+            self.remote_output   =       f'../{self.dataset}/output/a{self.a}_b{self.b}_c{self.c}_T{self.threshfactor}/'
 
         def calculate_parameters():
+            """
+            Reads /Sets geometrical metadata about image stack, including voxel dimensions and minimum desired fibril length
+            """
             self.start               =       0
             if ('Dropbox' in os.getcwd()):              #LOCAL
                 self.dirInputs   =   self.local_input
@@ -55,16 +116,29 @@ class metadata:
             self.npix            =   Image.open(glob.glob(self.dirInputs+'/segmented/*')[0]).size[0]
             if self.test:
                 self.frac        =   0.5
-                self.l_min       =    self.frac*self.dz*self.nP_all
+                self.l_min       =    self.frac*self.dz*self.nP
             else:
                 self.l_min           =   10000
                 self.frac            =   np.round((self.l_min/self.dz)/self.nP_all, 3)
+
+
         calculate_parameters()
 
 def create_binary_stack(d,whitefibrils=True):
     """
-    imports images from given 3V directory
-    has the option to switch based on whether the fibrils are black on a white background or vice versa
+    imports images from given 3V directory into a np.array
+
+    Parameters:
+    ----------
+    d : class
+        metadata class
+    whitefibrils : bool
+        switch based on whether the fibrils are black on a white background or vice versa
+
+    Returns
+    -------
+    imgstack : array (int) of size (dz,npix,npix)
+
     """
     imagePath = sorted(glob.glob(d.dirInputs+'segmented/*'))[d.start:d.end]
     npix=np.asarray(Image.open(imagePath[0])).shape[0]
@@ -81,18 +155,20 @@ def create_binary_stack(d,whitefibrils=True):
         return imgstack
     else:
         return np.logical_not(imgstack).astype(int)  #May not always be necessary to invert!
-def compress_by_skipping(skip):
-    global imgstack
-    if skip>1: #Resize array and renumber junk slices if skipping slices
-        keep=skip*np.arange(d.nP/skip).astype(int)
-        imgstack=imgstack[keep]
-        d.junk=d.junk/skip
-        dz*=skip
-        d.dirOutputs= d.dirInputs+'skip_%d_results/'%skip
-def create_morph_comp(imgstack):
+def create_morph_comp(imgstack,d):
     """
-    a 3d Labelled array of image stack. Named for the morphological components function in mathematica.
+    Creates a 3d Labelled array of image stack. Named for the morphological components function in mathematica.
     In each plane, every object gets a unique label, labelled from 1 upwards. The background is labelled 0.
+    Saves this in the default output directory.
+
+    Parameters:
+    ----------
+    imgstack : np.array (type=int)
+        3D binary array of fibrils =1 and background =0
+
+    Returns
+    -------
+    MC  : np.array(type=int)
     """
     MC=np.zeros(imgstack.shape, dtype=np.int16) #initialising array for morph comp
     print("Creating MC array from scratch")
@@ -100,11 +176,23 @@ def create_morph_comp(imgstack):
         MC[i]=label(imgstack[i])
     np.save(d.dirOutputs+'morphComp', MC)
     return MC
-def create_properties_table(MC):
+def create_properties_table(MC, d):
     """
-    Setting up table of properties for each plane (props) props stores (pID, objectID, property).
-    it is the length of the max number of objects in any plane, and populated with zeroes.
+    Setting up table of properties for each plane called
+    it is the length of the max number of objects in any plane, and initially populated with zeroes.
     Everything is measured in pixels
+
+    Parameters:
+    ----------
+    MC : np.array (type=int)
+        a 3d Labelled array of image stack.
+    Returns
+    -------
+    props : np array(planenumber, objectnumber, property).
+        plane number from 0 to nP-1
+        object number from 1 to nObj
+        where properies are indexed 0-5
+        'centroid' [0, 1],'orientation' [2],'area' [3],'eccentricity' [4], 'MFD' [5]
     """
     props_ofI='centroid','orientation','area','eccentricity' # these properties are the ones to be calculated using skimage.measure
     print(f'MC shape {MC.shape}')
@@ -119,15 +207,29 @@ def create_properties_table(MC):
     np.save(d.dirOutputs+'props', props)
     return props
     #return temp.shape
-
 def create_Directory(directory):
     """
     Tests for existence of directory then creates one if not
+
+    Parameters:
+    ----------
+    directory : string (path)
     """
     if not os.path.exists(directory):
         os.makedirs(directory)
+def setup_MC_props(d):
+    """
+    Checks for the existence of a morphological components array and
+    a properties array, from a previous run, and makes one if it
+    does not already exist
 
-def setup_MC_props(skip=1):
+    Returns:
+    ----------
+    MC : np.array(int)
+        as in create_morph_comp
+    props : np.array (float)
+        as in create_properties_table
+    """
     create_Directory(d.dirOutputs)
     #Check for previous MC/Properties tables
     if (os.path.isfile(d.dirOutputs+'morphComp.npy') & os.path.isfile(d.dirOutputs+'props.npy')): #to save time
@@ -137,30 +239,23 @@ def setup_MC_props(skip=1):
     else:
         print("No MC/Props found. Creating from scratch")
         imgstack=create_binary_stack(d) #import images and create binary array
-        if skip>1:
-            compress_by_skipping(skip)
-        MC=create_morph_comp(imgstack)
-        props=create_properties_table(MC)
-        # props=1
+        MC=create_morph_comp(imgstack,d)
+        props=create_properties_table(MC, d)
     return MC, props
 
-if ('Dropbox' in os.getcwd()):
-    minirun=True
-    dataset='9am-2L' # dataset='nuts-and-bolts'
-else:
+# if ('Dropbox' in os.getcwd()):
+#     # Local run
+#     minirun=True
+#     dataset='9am-1R'
+
+# Remote run -- read off jobscript file
+
+def initialise_dataset():
     dataset = sys.argv[1]
-    try:
-        minirun = sys.argv[2]
-    except:
-        minirun = False
+    minirun= sys.argv[2]
+    a, b, c, T= tuple([float(sys.argv[i]) for i in [3, 4, 5,6]])
 
-d=metadata(dataset,minirun)
-print(f'a0: Initialising FTA for Dataset {dataset}')
-MC, props=setup_MC_props()
-#%%
-
-# i=np.random.randint(0, d.nP)
-# # i=45;
-# print(f'i = {i}')
-# print(feret_diameters_2d(MC[i]))
-# props[80, 22]
+    d=metadata(dataset,minirun, a, b, c, T)
+    print(f'a0: Initialising FTA for Dataset {dataset}')
+    MC, props=setup_MC_props(d)
+    return d, MC, props

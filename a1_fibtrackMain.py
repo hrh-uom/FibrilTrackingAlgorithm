@@ -1,4 +1,4 @@
-from a0_initialise import *
+import a0_initialise as a0
 import customFunctions as md
 from feret_diameter import feret_diameters_2d
 import numpy as np
@@ -37,8 +37,8 @@ def err_f(pID, i, j, dz_f): #error in feret diameter
     return np.abs(props[pID+dz_f, j, 5]-props[pID, i, 5])/Lscale
 def err(pID, fID, prev_i, j,dz_b, dz_f, a, b, c):  #not ensuring values need to ve <1
     return (1/(a+b+c)) *(a* err_c(pID, fID, prev_i,j,dz_b, dz_f)+b*err_f(pID, fID, j,dz_f)+c*err_a(pID, fID, j,dz_f))
-def errorthresh(a, b, c, skip): #max values for error cutoff.
- return (1/(a+b+c))*(a *skip + b + c )
+def errorthresh(a, b, c, threshfactor): #max values for error cutoff.
+ return threshfactor*(1/(a+b+c))*(a + b + c )
 #--------Junk Slice Functions
 def increments_back_forward(pID):
     """
@@ -71,14 +71,13 @@ def initialise_fibril_record(MC):
     FR_local[:,0]=np.unique(MC[0])[1:]-1  #use like FR_local[fID, pID]
     #return FR_local
     return FR_local
-def fibril_mapping(a,b,c, MC, FR_local, skip=1, FRFname='fib_rec'):
-
+def fibril_mapping(d, MC, FR_local, FRFname='fib_rec'):
     """
     Populates fibril record, from top plane through the volume
     """
     start_time=tt()
     nfibs=FR_local.shape[0]
-    md.print_status('\npID,nfibs,time,time since mapping began (min)')
+    md.print_status('\npID,nfibs,time,time since mapping began (min)',d)
     print("Starting fibril mapping")
     for pID in tqdm(range(lastplane_tomap())):
         if np.any(d.junk==pID):#If the slice is junk, skip the mapping.
@@ -97,7 +96,7 @@ def fibril_mapping(a,b,c, MC, FR_local, skip=1, FRFname='fib_rec'):
                     compare_me=np.delete(np.unique(np.ndarray.flatten(MC[pID+dz_f,index[0]:index[1], index[2]:index[3]]-1) ),0) #find a more neat way to do this. List of indices in next slice to look at.
                     for j in compare_me: #going through relevant segments in next slice
                         # print(f"Compare me {j}")
-                        err_table[fID,j]=err(pID, FR_local[fID,pID], FR_local[fID,pID-dz_b], j,dz_b, dz_f, a, b, c)
+                        err_table[fID,j]=err(pID, FR_local[fID,pID], FR_local[fID,pID-dz_b], j,dz_b, dz_f, d.a, d.b, d.c)
                 else:
                     #Ignoring fibrils that are erroneous in feret_diameter.py line 67
                     continue
@@ -107,7 +106,7 @@ def fibril_mapping(a,b,c, MC, FR_local, skip=1, FRFname='fib_rec'):
         sort_err_pairs =np.transpose(np.unravel_index(np.argsort(err_table, axis=None), err_table.shape))
 
         #delete pairs with 0 errors (ie those who are outside the box) and those above the threshold
-        delete=np.concatenate((np.where(sort_errs==0)[0],np.where(sort_errs>errorthresh(a,b,c, skip))[0]), axis=0)
+        delete=np.concatenate((np.where(sort_errs==0)[0],np.where(sort_errs>errorthresh(d.a, d.b, d.c, d.threshfactor))[0]), axis=0)
         sort_err_pairs=np.delete(sort_err_pairs,delete, axis=0)
 
         i=0  #Matching up
@@ -129,26 +128,17 @@ def fibril_mapping(a,b,c, MC, FR_local, skip=1, FRFname='fib_rec'):
         nfibs+=new_objects.size
 
         # save/export stuff
-        md.print_status('\n'+','.join(map(str,[pID,nfibs,datetime.now(), timedelta(seconds=np.round(tt()-start_time))], )))
+        md.print_status('\n'+','.join(map(str,[pID,nfibs,datetime.now(), timedelta(seconds=np.round(tt()-start_time))], )), d)
         np.save(d.dirOutputs+FRFname, FR_local)
     print('mapping complete in'+ str(timedelta(seconds=np.round(tt()-start_time))))
     return FR_local
-
 #%%------------------------------2. MAIN FLOW -----------------------------------
 if __name__ == "__main__":
     print("a1: fibril tracking")
-    a,b,c=1,1,1
-
-    # d=dataset(input('Enter Dataset'))
-    md.print_status('\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nNEW RUN \n time,'+str(datetime.now())+f'\n a, {a}\n b,{b} \n c,{c}\n')
+    d, MC, props = a0.initialise_dataset()
+    md.print_status('\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nNEW RUN \n time,'+str(datetime.now()), d)
     for key, value in vars(d).items():
         print(key,'\t',value)
-        md.print_status(key+','+str(value)+'\n')
-
-    MC, props=setup_MC_props()
+        md.print_status(key+','+str(value)+'\n', d)
     FR_core=initialise_fibril_record(MC)
-    FR_core=fibril_mapping(a, b, c, MC,FR_core)
-
-# main(1,1,1)
-
-#%%--------------------------SANDBOX--------------------------------------------
+    FR_core=fibril_mapping(d, MC,FR_core)
