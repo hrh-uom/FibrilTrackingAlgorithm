@@ -1,4 +1,3 @@
-from a0_initialise import *
 import numpy as np
 import threading, time, multiprocessing, os
 import glob
@@ -11,19 +10,18 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from IPython.display import HTML
 from tqdm import tqdm
+import a0_initialise as a0
+
 plt.style.use('./mystyle.mplstyle')
 
 print("b2: Volume rendering")
 
 def load_FTA_results():
+    d, MC, props = a0.initialise_dataset()
     md.create_Directory(d.dirOutputs+'/volumerendering')
     try:
-        path=glob.glob( d.dirOutputs + 'morphComp*')[0];
-        MC=np.load(path) #original, import fibril record
-    except:
-        print("Error, no MC found")
-    try:
-        path=glob.glob( d.dirOutputs + 'fib_rec*'+f'{d.frac*100}*')[0];
+        # path=glob.glob( d.dirOutputs + 'fib_rec*'+f'{d.frac*100}*')[0];
+        path=glob.glob( d.dirOutputs + 'fib_rec_trim*')[0]
         FR=np.load(path) #original, import fibril record
         nF=FR.shape[0]
         print(f'nF={nF}')
@@ -31,19 +29,19 @@ def load_FTA_results():
         FR=0
         print("Error, no fibrec found")
     try:
-        path=glob.glob( d.dirOutputs + f'label*{d.frac*100}*')[0]
+        path=glob.glob( d.dirOutputs + f'label*')[0]
         volume=np.load(path) #original, import fibril record
         # if np.any(junk <=d.nP): #CORRECTING JUNK PLANES
         #     volume=np.delete(volume,junk[junk<=d.nP], axis=0) #deletes junk planes
     except:
         volume=0
         print("Error, no labelled volume found")
-    return MC, FR, volume, nF
-#%%----------------STEP THROUGH ANIMATION ---------------------------------
+    return d, MC, props, FR, volume, nF
+
+#----------------STEP THROUGH ANIMATION ---------------------------------
 
 def stepthrough():
-    md.export_animation(d.dirOutputs, np.arange(nF) ,volume,dt=100,step=3)
-
+    md.export_animation(d.dirOutputs, np.arange(nF) ,volume,dt=100,step=1)
 #%%----------------MID -PLANE IMAGE------------------------------------------
 def midPlaneImage():
     """
@@ -60,47 +58,44 @@ def midPlaneImage():
     # plt.show()
 # midPlaneImage()
 
-#%%------------------VOLUME RENDERING------------------------------------------
-
-def volume_render(labels, z1, z2, x1, x2,  pxsize,dz,dirOutputs,filename, el=40,aspect=True, show=True):
-    minivol=labels[z1:z2, x1:x2, x1:x2]#subsection
-    # minivol=volume
-    #plotting
-    fig = plt.figure(figsize=(20, 15))
-    ax=plt.axes(projection='3d')
-    whichfibs=np.unique(minivol)[np.unique(minivol)>0]
-    # print(whichfibs)
-    j=0
+#------------------VOLUME RENDERING------------------------------------------
+def volume_render(labels, d, z1, z2, x1, x2,filename,resamplex=1, resamplez=1,el=40,aspect=True, show=True):
+    minivol=labels[z1:z2:resamplez, x1:x2:resamplex, x1:x2:resamplex]#resampled volume
     print("Volume rendering image")
+    fig = plt.figure(figsize=(30, 20)) ; ax = fig.add_subplot(projection='3d')
+    whichfibs=np.unique(minivol)[np.unique(minivol)>0] ; j=0
     for i in tqdm(whichfibs):
-        j+=1
-        print(f"fibril {j} of {len(whichfibs)}") if j in np.arange(0, len(whichfibs), len(whichfibs//10)) else 0
         minivol_coords=np.argwhere(minivol==i)
-        # print(minivol_coords)
-        ax.scatter(d.pxsize*minivol_coords[:,1]/1000, d.pxsize*minivol_coords[:,2]/1000, dz*minivol_coords[:,0]/1000, marker=',')
+        ax.scatter(resamplex*d.pxsize*minivol_coords[:,1]/1000, resamplex*d.pxsize*minivol_coords[:,2]/1000, resamplez*d.dz*minivol_coords[:,0]/1000, marker=',')
+    # ax.scatter(np.random.randint(0, 10000, 100)/1000, np.random.randint(0, 10000, 100)/1000, np.random.randint(0, 50000, 100)/1000)
+    proportions=(resamplex*d.pxsize*minivol.shape[1],resamplex*d.pxsize*minivol.shape[2],resamplez*d.dz*minivol.shape[0])
 
-    proportions=(d.pxsize*minivol.shape[1],d.pxsize*minivol.shape[2],dz*minivol.shape[0])
-    if aspect:
-        ax.set_box_aspect(proportions)  # aspect ratio is 1:1:1 in data space
-
+    print(f'proporions {d.pxsize*d.npix}, {d.dz*d.nP_all}')
+    ax.set_box_aspect(proportions)  # aspect ratio is 1:1:1 in data space
     ax.view_init(elev=el, azim=225)
 
-    ax.set_xlabel('x ($\mu$m)');ax.set_zlabel('z ($\mu$m)');ax.set_ylabel('y ($\mu$m)')
-    print("Saving VR rendering image")
-    plt.savefig(d.dirOutputs+filename+'.png')
+    #LABELS
+    label_sz=24
+    ax.set_xlabel('x ($\mu$m)', labelpad=15, fontsize=label_sz);
+    ax.set_ylabel('y ($\mu$m)', labelpad=15, fontsize=label_sz);
+    ax.set_zlabel('z ($\mu$m)', rotation='horizontal', labelpad=25 , fontsize=label_sz, )
+
+    #TICKS
+    ticksize=18;
+    ax.tick_params(axis='x', pad=0, labelsize=ticksize);
+    ax.tick_params(axis='y', pad=-5, labelsize=ticksize, rotation = 45);
+    ax.tick_params(axis='z', pad=30, labelsize=ticksize)
+
+    print("Saving VR rendering image"); plt.savefig(d.dirOutputs+filename+f'_resample_{resamplex}_{resamplez}'+'.png', bbox_inches='tight' ,pad_inches = 0)
     if show:
         plt.show()
 
-
 #%%-----------MAIN FLOW
-
 if __name__=='__main__':
-    # parallell_process()
-    MC, FR, volume,nF=load_FTA_results()
+    d, MC, props, FR, volume, nF=load_FTA_results()
     stepthrough()
     midPlaneImage()
-    volume_render(volume, 0, d.nP, 0, d.npix, d.pxsize, d.dz, d.dirOutputs, 'volumerendering/volume-render')
-
+    volume_render(volume, d, 0, d.nP, 0, d.npix, 'volumerendering/volume-render', resamplex=2, resamplez=2, show=False)
 
 #%%------------------VOLUME FOR ABC-------------------------------------------------
 
@@ -112,13 +107,11 @@ def find_fibrecs():
     bottom3_fs=lis[0:3] ; top_3_reasonable=lis[3:]
     orig111_f=['/Users/user/Dropbox (The University of Manchester)/fibril-tracking/nuts-and-bolts/csf-695/abc/fib_rec_a_1.00_b_1.00_c_1.00.npy']
     return top5_fs,bottom3_fs, top_3_reasonable, orig111_f
-
 def get_abc_from_filename(f):
     a=float(f.split('_' )[-5])
     b=float(f.split('_' )[-3])
     c=float(f.split('_', )[-1][0:4])
     return a,b,c
-
 def func(f, output_prefix='test', seed=0):
     MC, _ , _, d.pxsize,junk, dz, d.nP, d.npix, d.frac=load_FTA_results()
     print (f"ABC={get_abc_from_filename(f)}")
@@ -132,7 +125,6 @@ def func(f, output_prefix='test', seed=0):
     a,b,c=get_abc_from_filename(f)
     outputfilename=f'{output_prefix}_a_{a}_b_{b}_c_{c}'
     volume_render(labels, 0, d.nP, 0, 1000, d.pxsize,dz, d.dirOutputs, outputfilename, show=False)
-
 def parallell_process():
     top5_fs,bottom3_fs, top_3_reasonable, orig111_f=find_fibrecs()
     start=time.perf_counter()
@@ -158,88 +150,3 @@ def parallell_process():
     func(orig111_f[0], 'original')
     finish=time.perf_counter()
     print (f'Finished in {round((finish-start)/60, 5)}s')
-
-#%%---------------VOLUME RENDERING ANIMATION SANDBOX-----------------------------
-"""
-
-minivol=volume[:, 300:350, 300:350]#subsection
-# minivol=volume
-
-#plotting
-fig = plt.figure(figsize=(12, 10))
-ax=fig.add_subplot(projection='3d')
-
-whichfibs=np.unique(minivol)[np.unique(minivol)>0]
-
-for i in whichfibs:
-    minivol_coords=np.argwhere(minivol==i)
-    # print(minivol_coords)
-    ax.scatter(d.pxsize*minivol_coords[:,1], d.pxsize*minivol_coords[:,2], dz*minivol_coords[:,0], marker=',')
-    ax.set_box_aspect(proportions)  # aspect ratio is 1:1:1 in data space
-    ax.view_init(elev=30, azim=225)
-    ax.set_xlabel('x (nm)');ax.set_zlabel('z ($\mu$m)');ax.set_ylabel('y ($\mu$m)')
-
-ax.set_box_aspect(proportions)  # aspect ratio is 1:1:1 in data space
-ax.view_init(elev=30, azim=225)
-ax.set_xlabel('x (nm)');ax.set_zlabel('z ($\mu$m)');ax.set_ylabel('y ($\mu$m)')
-plt.show()
-#%%
-
-fig = plt.figure(figsize=(12, 10))
-ax=fig.add_subplot(projection='3d')
-container = []
-import scipy.ndimage
-# labels=label_volume(morphComp,fib_group, fib_rec, endplane,startplane)
-# color = [tuple(np.random.random(size=3)) for i in range(len(fib_group))] #randomcolourlist
-# color.insert(0,(1.,1.,1.)) #makesure other fibrils are white!!
-# rgblabel=label2rgb(labels, bg_label=-1, colors=color);
-for pID in range(1, d.nP):
-
-    print(f'animating {pID}')
-    minivol=volume[0:pID, 0:300, 0:300]
-    for i in whichfibs:
-        minivol_coords=np.argwhere(minivol==i)
-        im=ax.scatter(d.pxsize*minivol_coords[:,1], d.pxsize*minivol_coords[:,2], dz*minivol_coords[:,0], marker=',')
-    ax.set_box_aspect(proportions)  # aspect ratio is 1:1:1 in data space
-    ax.view_init(elev=30, azim=225)
-    ax.set_xlabel('x (nm)');ax.set_zlabel('z ($\mu$m)');ax.set_ylabel('y ($\mu$m)')
-    proportions=(d.pxsize*minivol.shape[1],d.pxsize*minivol.shape[2],dz*minivol.shape[0])
-    ax.set_box_aspect(proportions)  # aspect ratio is 1:1:1 in data space
-    ax.view_init(elev=30, azim=225)
-    ax.set_xlabel('x (nm)');ax.set_zlabel('z ($\mu$m)');ax.set_ylabel('y ($\mu$m)')
-    container.append([im])
-
-ani = animation.ArtistAnimation(fig, container, interval=1000, blit=True)
-plt.close();
-HTML(ani.to_html5_video())
-"""
-
-def f():
-    #TRYING TO MAKE OWN RGB LABEL
-    import importlib
-    importlib.reload(md);
-
-    # labels=md.label_volume(MC, np.arange(nF), FR, 110, 100)
-    # junk
-    # md.animation_inline(np.arange(nF) ,labels, step=1)
-
-
-    labels=md.label_volume(MC, np.arange(nF), FR, 10)
-
-    nF=np.max(labels)+1
-    fib_group=np.unique(labels)
-    fib_group
-    labels.shape
-    color = [tuple(np.random.random(size=3).astype('float16')) for i in range(nF)]
-    color.insert(0, (1.,1.,1.))
-    pID=0
-    labels.shape[1]
-
-    rgblabel=np.zeros((labels.shape[1],labels.shape[2], 3))
-    for i in fib_group:
-        #includes -1
-        rgblabel[np.argwhere(labels[pID]==0)]=color[i]
-
-    plt.imshow(rgblabel)
-
-    labels[pID]

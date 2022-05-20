@@ -79,7 +79,7 @@ class metadata:
             self.remote_input   =       '../nuts-and-bolts/'
             self.remote_output  =       '../nuts-and-bolts/output/'
         else: #MechanicsData
-            self.end            =   10
+            self.end            =   100
             self.local_input     =       f'/Users/user/dbox/2-mechanics-model/em/{self.dataset}/'
             self.local_output    =       f'/Users/user/dbox/2-mechanics-model/output-{self.end}/{self.dataset}/a{self.a}_b{self.b}_c{self.c}_T{self.threshfactor}/'
             self.local_csf_out   =       f'/Users/user/dbox/2-mechanics-model/csf-output/{self.dataset}/a{self.a}_b{self.b}_c{self.c}_T{self.threshfactor}/'
@@ -252,7 +252,7 @@ def setup_MC_props(d):
 
 def initialise_dataset():
     dataset = sys.argv[1]
-    minirun= sys.argv[2]
+    minirun= bool(int(sys.argv[2]))
     a, b, c, T= tuple([float(sys.argv[i]) for i in [3, 4, 5,6]])
 
     d=metadata(dataset,minirun, a, b, c, T)

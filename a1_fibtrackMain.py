@@ -136,7 +136,7 @@ def fibril_mapping(d, MC, FR_local, FRFname='fib_rec'):
 if __name__ == "__main__":
     print("a1: fibril tracking")
     d, MC, props = a0.initialise_dataset()
-    md.print_status('\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nNEW RUN \n time,'+str(datetime.now()), d)
+    md.print_status('\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nNEW RUN \n time,'+str(datetime.now())+'\n', d)
     for key, value in vars(d).items():
         print(key,'\t',value)
         md.print_status(key+','+str(value)+'\n', d)
