@@ -14,7 +14,7 @@ import matplotlib.patches as patches
 from  datetime import datetime as dt
 import os
 from tqdm import tqdm
-plt.style.use('./mystyle.mplstyle')
+plt.style.use('~/dbox/4-Thesis/stylesheet.mplstyle')
 
 #----------------DIRECTORIES AND PATHS-------------------
 def create_Directory(directory):
@@ -193,7 +193,7 @@ def my_histogram(arr,xlabel, show, dens=False, title=0, labels=[], binwidth=10, 
             # these are matplotlib.patch.Patch properties
             props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
             # place a text box in upper left in axes coords
-            ax.text(0.8, 0.9, textstr, transform=ax.transAxes, fontsize=18,
+            ax.text(0.7, 0.9, textstr, transform=ax.transAxes, fontsize=21,
             verticalalignment='top', bbox=props)
         else:
             ax.margins(0.05, 0.05)
@@ -220,6 +220,34 @@ def my_histogram(arr,xlabel, show, dens=False, title=0, labels=[], binwidth=10, 
         plt.savefig(filename)
     if show:
         plt.show()
+
+
+
+#%%------------------PDFs for fitting----------------------
+def lognorm_pdf(x, s, u):
+    """
+    Log normal distribution
+    """
+    A   =   1                       /       (x*s*np.sqrt(2*np.pi))
+    B   =   (np.log(x)-u)**2       /       (2*s**2)
+    return A * np.exp(-B)
+def normal_pdf(x, s, u):
+    """
+    Normal distribution
+    """
+    A   =   1       /          (s * np.sqrt(2*np.pi))
+    B   =   0.5     *          ((x-u)/s)**2
+    return A * np.exp (-B)
+def bi_pdf(x, s1, u1, s2, u2, w):
+    """
+    bimodal Normal distribution
+    """
+    return w * normal_pdf(x, s1, u1) + (1-w) * normal_pdf(x, s2, u2)
+def tri_pdf(x, s1, u1, s2, u2, s3, u3, w1, w2):
+    """
+    trimodal Normal distribution
+    """
+    return w1 * normal_pdf(x, s1, u1) + w2 * normal_pdf(x, s2, u2)+ (1 - w1 - w2) * normal_pdf(x, s3, u3)
 
 #------------------------------STATS---------------------
 
