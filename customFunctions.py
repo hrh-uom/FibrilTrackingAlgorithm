@@ -96,21 +96,6 @@ def label_volume(morphComp,fib_group,fib_rec,endplane, startplane=0):
              labels[j]=np.where(morphComp[pID]==fib_rec[fib_group[i], pID]+1, value, labels[j])
         j+=1
     return labels
-#
-# def custom_RGB_maker(fib_group, labels):
-#     """
-#     Takes a 3D array of labels and makes each label a different colour in terms of RGB [0, 0, 0] to [255, 255, 255]
-#     Custom version of skimage.color.label2rgb which uses int data type to save memory
-#     """
-#     cols=np.random.randint(0, 255, (np.max(labels)+10, 3), dtype='uint8'); cols[0]=[0,0,0]; cols[1]=[255,255,255]
-#     # cols=np.full((np.max(labels)+10, 3), 255, dtype='uint8'); cols[0]=[0,0,0];
-#
-#     RGB_vol=np.zeros((labels.shape[0], labels.shape[1], labels.shape[2], 3), dtype='uint8')
-#     for i in np.arange(labels.shape[0]):
-#         RGB_plane=cols[(labels[i]+1)] #https://forum.image.sc/t/skimage-color-label2rgb-but-choose-specific-colors-for-specific-labels/62500
-#         RGB_vol[i]=RGB_plane
-#     return RGB_vol
-
 def custom_RGB_maker(fib_group, labels):
     """
     Takes a 3D array of labels and makes each label a different colour in terms of RGB [0, 0, 0] to [255, 255, 255]
@@ -159,8 +144,6 @@ def animation_inline(fib_group, labels, startplane=0, endplane=0, dt=500, figsiz
     """
     ani=create_animation(fib_group, labels, startplane, endplane, dt, figsize, step, fas_coords=fas_coords)
     return HTML(ani.to_html5_video())
-
-
 #---------------PLOTS-------------------
 def my_histogram(arr,xlabel, show, dens=False, title=0, labels=[], binwidth=10, xlims=0, pi=False,filename=0, leg=False, fitdata=0, fitparams=0, units=''):
     """
@@ -220,8 +203,6 @@ def my_histogram(arr,xlabel, show, dens=False, title=0, labels=[], binwidth=10, 
         plt.savefig(filename)
     if show:
         plt.show()
-
-
 
 #%%------------------PDFs for fitting----------------------
 def lognorm_pdf(x, s, u):
