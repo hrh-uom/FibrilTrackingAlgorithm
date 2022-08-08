@@ -16,27 +16,29 @@ from tqdm import tqdm
 #%%-----------------------1. FIBRIL MAPPING-------------------------------------
 #------Errors
 
-def err_c(pID, i,prev_i, j, dz_b, dz_f):
+def err_c(pID, i,prev_i, j, dz_b, dz_f, predictive):
     """
     centroid error
     """
     Lscale=props[pID, i, 5] #A sensible lengthscale for this fibril to move by. IE, its diameter.
-    #TEMPORARY !!! VERTICAL MAPPING
-    if pID!=-1: #top slice, no history.
-        return np.linalg.norm(props[pID, i, 0:2]-props[pID+dz_f, j, 0:2])/Lscale
+    if not(predictive): #predictive mapping switched off
+        return np.linalg.norm(props[pID, i, 0:2]-props[pID+dz_f, j, 0:2])/Lscale #VERTICAL MAPPING
     else:
-        currentcent=props[pID, i, 0:2]
-        prevcent=props[pID-dz_b, prev_i, 0:2]
-        predictedcent=currentcent+dz_f*(currentcent-prevcent)
-        return np.linalg.norm(predictedcent-props[pID+dz_f, j, 0:2])/Lscale
+        if pID==0:
+            return np.linalg.norm(props[pID, i, 0:2]-props[pID+dz_f, j, 0:2])/Lscale #VERTICAL MAPPING in top plane
+        else:
+            currentcent=props[pID, i, 0:2]
+            prevcent=props[pID-dz_b, prev_i, 0:2]
+            predictedcent=currentcent+dz_f*(currentcent-prevcent)
+            return np.linalg.norm(predictedcent-props[pID+dz_f, j, 0:2])/Lscale
 def err_a(pID, i, j, dz_f): #error in area
     Ascale=props[pID, i, 3]
     return np.abs(props[pID+dz_f, j, 3]-props[pID, i, 3])/Ascale
 def err_f(pID, i, j, dz_f): #error in feret diameter
     Lscale=props[pID, i, 5] #A sensible lengthscale for this fibril to move by. IE, its diameter.
     return np.abs(props[pID+dz_f, j, 5]-props[pID, i, 5])/Lscale
-def err(pID, fID, prev_i, j,dz_b, dz_f, a, b, c):  #not ensuring values need to ve <1
-    return (1/(a+b+c)) *(a* err_c(pID, fID, prev_i,j,dz_b, dz_f)+b*err_f(pID, fID, j,dz_f)+c*err_a(pID, fID, j,dz_f))
+def err(pID, fID, prev_i, j,dz_b, dz_f, a, b, c, predictive):  #not ensuring values need to ve <1
+    return (1/(a+b+c)) *(a* err_c(pID, fID, prev_i,j,dz_b, dz_f, predictive)+b*err_f(pID, fID, j,dz_f)+c*err_a(pID, fID, j,dz_f))
 def errorthresh(a, b, c, threshfactor): #max values for error cutoff.
  return threshfactor*(1/(a+b+c))*(a + b + c )
 #--------Junk Slice Functions
@@ -96,7 +98,7 @@ def fibril_mapping(d, MC, FR_local, FRFname='fib_rec'):
                     compare_me=np.delete(np.unique(np.ndarray.flatten(MC[pID+dz_f,index[0]:index[1], index[2]:index[3]]-1) ),0) #find a more neat way to do this. List of indices in next slice to look at.
                     for j in compare_me: #going through relevant segments in next slice
                         # print(f"Compare me {j}")
-                        err_table[fID,j]=err(pID, FR_local[fID,pID], FR_local[fID,pID-dz_b], j,dz_b, dz_f, d.a, d.b, d.c)
+                        err_table[fID,j]=err(pID, FR_local[fID,pID], FR_local[fID,pID-dz_b], j,dz_b, dz_f, d.a, d.b, d.c, d.predictive)
                 else:
                     #Ignoring fibrils that are erroneous in feret_diameter.py line 67
                     continue
@@ -134,7 +136,7 @@ def fibril_mapping(d, MC, FR_local, FRFname='fib_rec'):
     return FR_local
 #%%------------------------------2. MAIN FLOW -----------------------------------
 if __name__ == "__main__":
-    print("a1: fibril tracking")
+    print(f'a1: fibril tracking {md.t_d_stamp()}')
     d, MC, props = a0.initialise_dataset()
     md.print_status('\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nNEW RUN \n time,'+str(datetime.now())+'\n', d)
     for key, value in vars(d).items():

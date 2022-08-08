@@ -62,7 +62,7 @@ class metadata:
 
 
     """
-    def __init__(self, name, minirun, a, b, c, T):
+    def __init__(self, name, minirun, a, b, c, T, predictive):
         self.dataset        = name    # instance variable unique to each instance
         self.test           = minirun
 
@@ -70,59 +70,24 @@ class metadata:
         self.b               =   b
         self.c               =   c
         self.threshfactor    =   T
+        self.predictive      =  predictive
 
-        if self.dataset=='nuts-and-bolts':
-            self.end            =   10
-            self.local_input    =       '/Users/user/dbox/1-NutsBolts/em/'
-            self.local_output   =       f'/Users/user/dbox/1-NutsBolts/output/local_results_0_{self.end}/'
-            self.local_csf_out   =      f'/Users/user/dbox/1-NutsBolts/output/csf-695/'
-            self.remote_input   =       '../nuts-and-bolts/'
-            self.remote_output  =       '../nuts-and-bolts/output/'
-        else: #MechanicsData
-            self.end            =   100
-            self.local_input     =       f'/Users/user/dbox/2-mechanics-model/em/{self.dataset}/'
-            self.local_output    =       f'/Users/user/dbox/2-mechanics-model/output-{self.end}/{self.dataset}/a{self.a}_b{self.b}_c{self.c}_T{self.threshfactor}/'
-            self.local_csf_out   =       f'/Users/user/dbox/2-mechanics-model/csf-output/{self.dataset}/a{self.a}_b{self.b}_c{self.c}_T{self.threshfactor}/'
-            self.remote_input    =       f'../{self.dataset}/'
-            self.remote_output   =       f'../{self.dataset}/output/a{self.a}_b{self.b}_c{self.c}_T{self.threshfactor}/'
+        if self.dataset == 'example':
+            self.dirOutputs  =  './testdata/results/'
+            self.dirInputs  =   './testdata/'
+            self.end            =   5
+            self.start         =       0
 
-        def calculate_parameters():
-            """
-            Reads /Sets geometrical metadata about image stack, including voxel dimensions and minimum desired fibril length
-            """
-            self.start               =       0
-            if ('Dropbox' in os.getcwd()):              #LOCAL
-                self.dirInputs   =   self.local_input
-                self.nP_all      =   len(glob.glob(self.dirInputs+'segmented/*'))
+        self.nP_all      =   len(glob.glob(self.dirInputs+'segmented/*'))
+        self.nP              =   self.end-self.start #Number of planes
+        self.pxsize          =   pd.read_csv(glob.glob(self.dirInputs+'/*metadata*csv')[0]).pixelsize[0]
+        self.junk            =   pd.read_csv(glob.glob(self.dirInputs+'/*metadata*csv')[0]).junkslices.dropna().to_numpy()
+        self.dz              =   pd.read_csv(glob.glob(self.dirInputs+'/*metadata*csv')[0]).dz[0]
+        self.npix            =   Image.open(glob.glob(self.dirInputs+'/segmented/*')[0]).size[0]
 
-                if self.test:                #TESTING FROM SCRATCH
-                    self.dirOutputs  =   self.local_output
-                else:               #LOCALLY TESTING CSF RESULTS
-                    print('Using data from remote server')
-                    self.dirOutputs  =   self.local_csf_out
-                    self.end         =   self.nP_all
-
-            else:                                       #ON CSF
-                self.dirInputs   =   self.remote_input
-                self.dirOutputs  =   self.remote_output
-                print (f'The output directory is {self.dirOutputs}')
-                self.nP_all      =   len(glob.glob(self.dirInputs+'segmented/*'))
-                self.end         =   self.nP_all
-
-            self.nP              =   self.end-self.start #Number of planes
-            self.pxsize          =   pd.read_csv(glob.glob(self.dirInputs+'/*metadata*csv')[0]).pixelsize[0]
-            self.junk            =   pd.read_csv(glob.glob(self.dirInputs+'/*metadata*csv')[0]).junkslices.dropna().to_numpy()
-            self.dz              =   pd.read_csv(glob.glob(self.dirInputs+'/*metadata*csv')[0]).dz[0]
-            self.npix            =   Image.open(glob.glob(self.dirInputs+'/segmented/*')[0]).size[0]
-            if self.test:
-                self.frac        =   0.5
-                self.l_min       =    self.frac*self.dz*self.nP
-            else:
-                self.l_min           =   10000
-                self.frac            =   np.round((self.l_min/self.dz)/self.nP_all, 3)
-
-
-        calculate_parameters()
+        # params for Removing short fibrils as a fraction of the number of planes, then as an absolute length
+        self.frac        =   0.5
+        self.l_min       =    self.frac*self.dz*self.nP
 
 def create_binary_stack(d,whitefibrils=True):
     """
@@ -174,7 +139,8 @@ def create_morph_comp(imgstack,d):
     print("Creating MC array from scratch")
     for i in tqdm(range(imgstack.shape[0])):
         MC[i]=label(imgstack[i])
-    np.save(d.dirOutputs+'morphComp', MC)
+    parentdir=os.path.dirname(d.dirOutputs[:-1])+'/'
+    np.save(parentdir+'morphComp', MC)
     return MC
 def create_properties_table(MC, d):
     """
@@ -204,7 +170,8 @@ def create_properties_table(MC, d):
         nobj=rprops.shape[0]; # nobjects in plane
         props[pID,0:nobj, 0:5]=rprops
         props[pID,0:nobj, 5]=feret_diameters_2d(MC[pID])
-    np.save(d.dirOutputs+'props', props)
+    parentdir=os.path.dirname(d.dirOutputs[:-1])+'/'
+    np.save(parentdir+'props', props)
     return props
     #return temp.shape
 def create_Directory(directory):
@@ -232,30 +199,29 @@ def setup_MC_props(d):
     """
     create_Directory(d.dirOutputs)
     #Check for previous MC/Properties tables
-    if (os.path.isfile(d.dirOutputs+'morphComp.npy') & os.path.isfile(d.dirOutputs+'props.npy')): #to save time
-        print(f'Loading MC/Props from {d.dirOutputs}')
-        MC=np.load(d.dirOutputs+"morphComp.npy")
-        props=np.load(d.dirOutputs+"props.npy")
+    parentdir=os.path.dirname(d.dirOutputs[:-1])+'/'
+
+    if (os.path.isfile(parentdir+'morphComp.npy') & os.path.isfile(parentdir+'props.npy')): #to save time
+        print(f'Loading MC/Props from {parentdir}')
+        MC=np.load(parentdir+'morphComp.npy')
+        props=np.load(parentdir+'props.npy')
     else:
-        print("No MC/Props found. Creating from scratch")
+        print(f"No MC/Props found. Creating from scratch in {d.dirOutputs}")
         imgstack=create_binary_stack(d) #import images and create binary array
         MC=create_morph_comp(imgstack,d)
         props=create_properties_table(MC, d)
     return MC, props
 
-# if ('Dropbox' in os.getcwd()):
-#     # Local run
-#     minirun=True
-#     dataset='9am-1R'
-
-# Remote run -- read off jobscript file
-
 def initialise_dataset():
+    #==========Read stuff from jobscript ============
     dataset = sys.argv[1]
     minirun= bool(int(sys.argv[2]))
-    a, b, c, T= tuple([float(sys.argv[i]) for i in [3, 4, 5,6]])
+    a= float(sys.argv[3])
+    b, c, T= tuple([float(sys.argv[i]) for i in [4, 5,6]])
+    predictive= bool(int(sys.argv[7]))
+    #=========================================
 
-    d=metadata(dataset,minirun, a, b, c, T)
+    d=metadata(dataset,minirun, a, b, c, T, predictive)
     print(f'a0: Initialising FTA for Dataset {dataset}')
     MC, props=setup_MC_props(d)
     return d, MC, props

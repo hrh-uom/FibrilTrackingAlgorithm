@@ -1,27 +1,30 @@
-from a0_initialise import *
-from a1_fibtrackMain import *
+import a0_initialise as a0
+import customFunctions as md
+import numpy as np
 import matplotlib.pyplot as plt
 #-----------------------------5. ALGORITHM FUNCTION FIG ------------------------
+d, MC, props = a0.initialise_dataset()
+
+
+
+
 
 def make_schematic():
-    ministack=create_binary_stack(d)
-    labels=10*ministack[0]
+    plane=MC[0]
+    labels=plane.astype(bool).astype(int)
     pID=0; fID=892
-
     labels=np.where(MC[pID]==fID+1,fID+1, labels)
-    labels.shape
-    np.unique(labels)
-    cols = ['grey', 'red', 'black', 'blue', 'yellow', 'purple']
-    rgblabel=label2rgb(labels-1, bg_label=-1, colors=cols);
     cofI=props[pID, fID, 0:2]
+    cols = ['grey', 'red', 'black', 'blue', 'yellow', 'purple']
+    rgblabel=md.label2rgb(labels-1, bg_label=-1, colors=cols);
     MFDofI=props[pID, fID, 5]
     xy=md.search_window(cofI, MFDofI*5, d.npix)[:,0].tolist();
     recsize=np.ndarray.flatten(np.diff(md.search_window(cofI, MFDofI*5, d.npix))).tolist();
     fig1, (ax1, ax2) = plt.subplots( 1, 2  )
-    ax1.imshow(rgblabel, origin='lower', interpolation='nearest')
+    ax1.imshow(rgblabel, origin='lower', interpolation='nearest', extent=(0, d.npix*d.pxsize/1000, 0,  d.npix*d.pxsize/1000))
     # plt.title('fID %i. Plane %i of %i. Size %i' % (fID,pID+1, nplanes, d.npix/10))
-    # plt.ylabel('y pix')
-    # plt.xlabel('x pix')
+    ax1.set_xlabel('x ($\mu$m)')
+    ax1.set_ylabel('y ($\mu$m)')
     # Create a Rectangle patch
     import matplotlib.patches as patches
 
@@ -31,21 +34,26 @@ def make_schematic():
     ax1.add_patch(rect)
     ax1.set_title("Plane $p$")
 
-
     ax2.set_title("Plane $p+1$")
-
+    ax2.set_xlabel('x ($\mu$m)')
+    ax2.set_ylabel('y ($\mu$m)')
     index=np.ndarray.flatten(md.search_window(cofI, MFDofI*5, d.npix)).astype('int')
     compare_me=np.delete(np.unique(np.ndarray.flatten(MC[pID+1,index[0]:index[1], index[2]:index[3]]-1) ),0)
-    labels2=10*ministack[1]
+    plane2=MC[1]
+    labels2=plane2.astype(bool).astype(int)
     for fID in compare_me:
         labels2=np.where(MC[pID+1]==fID+1,50, labels2)
-    rgblabel2=label2rgb(labels2-1, bg_label=-1, colors=cols);
-    ax2.imshow(rgblabel2, origin='lower', interpolation='nearest')
+    rgblabel2=md.label2rgb(labels2-1, bg_label=-1, colors=cols);
+
+    ax2.imshow(rgblabel2, origin='lower',  extent=(0, d.npix*d.pxsize/1000, 0,  d.npix*d.pxsize/1000))
+    ax2.set_xticks(np.arange(0,11,2))
+    ax1.set_xticks(np.arange(0,11,2))
+
     ax2.add_patch(rect2)
+    fig1.tight_layout()
     plt.savefig(d.dirOutputs+'window-schematic.png');    plt.show()
 make_schematic()
 
-d.dirOutputs
 #%%---------------------------6. ERROR THRESHOLD FIG -------------------------------
 def make_errorthresh_fig(skip=1):
     pID=0;prev_i=100; a,b,c=1,1,1 ;dz_b, dz_f=increments_back_forward(pID)

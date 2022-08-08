@@ -5,12 +5,18 @@ import a0_initialise as a0
 from scipy import stats
 import glob , os
 import pandas as pd
+from scipy.stats import norm, skewnorm
+import matplotlib.patches as mpatches
+from  matplotlib.colors import ListedColormap
 from tqdm import tqdm
-from scipy.optimize import curve_fit
-plt.style.use('./mystyle.mplstyle')
+from matplotlib import animation
+from IPython.display import HTML
 
-#---------------------USER INPUT--------------------------------------------
-print("a2:Fibtrack stats")
+from scipy.optimize import curve_fit
+plt.style.use('~/dbox/4-Thesis/stylesheet.mplstyle')
+
+#---------------------USER INPUT----------------.----------------------------
+print(f'a2:Fibtrack stats {md.t_d_stamp()}')
 atom=False
 d, MC, props = a0.initialise_dataset()
 
@@ -28,13 +34,10 @@ def import_from_FTA():
     except:
         print("Trimming")
         FR=md.trim_fib_rec(FR_0, MC, dirOutputs, d.frac)
-
-    labels=np.load(glob.glob(dirOutputs+'label*')[0])
     md.create_Directory(dirOutputs+'stats')
     nF, _=FR.shape
-    return dirOutputs, FR, FR_0, nF, labels
-dirOutputs, FR, FR_0, nF, labels = import_from_FTA()
-
+    return dirOutputs, FR , FR_0, nF
+dirOutputs, FR, FR_0, nF = import_from_FTA()
 #%%--------------FASCICLE LENGTHS---------------------------------
 def fascicleCoord(pID):
     """
@@ -50,7 +53,7 @@ def fascicleCoord(pID):
         return np.array([-1,-1, -1])
 def fibCoords(i):
     """
-    calculates the coordinates in 3d real space of a fibril (i).
+    calculates the coordinates in 3d real space of a fibril (i) in nm - from the pizel sizes
     """
     co_ords=np.full((d.nP, 3),-1.)  #an array of the centroid co-ordinates for each fibril
     for pID in range(d.nP):
@@ -84,54 +87,35 @@ def calculate_fascicle_length():
     return fas_len, np.array(fas_coord)
 fas_len, fas_coord=calculate_fascicle_length()
 
+print (f"{d.dataset} the length of the fascicle is {fas_len}")
 #%% WHERE IS THE FASCICLE GOING
 def fascicle_travel():
     import matplotlib.cm as cm
     from matplotlib.collections import LineCollection
-    fig, ax=plt.subplots(figsize=(5,5))
+    fig, (ax1, ax2)=plt.subplots(1, 2, figsize=(20,6))
     x=fas_coord[:,0]/d.pxsize
     y=fas_coord[:,1]/d.pxsize
     cols = np.linspace(0,100*(1+d.nP//100),len(x))
 
     # ax.set_aspect(1)
-    ax.set_xlim(600,800);ax.set_ylim(600, 800)
+    ax1.set_xlim(500,1000);ax1.set_ylim(200, 1000)
     points = np.array([x, y]).T.reshape(-1, 1, 2)
     segments = np.concatenate([points[:-1], points[1:]], axis=1)
-    ax.set_xlabel('x (pixels)');ax.set_ylabel('y (pixels)')
+    ax1.set_xlabel('x (pixels)');ax1.set_ylabel('y (pixels)')
     lc = LineCollection(segments, cmap='gist_rainbow')
     lc.set_array(cols); lc.set_linewidth(2)
-    line = ax.add_collection(lc)
-    fig.colorbar(line,fraction=0.046, pad=0.04)
-    plt.savefig(dirOutputs+'stats/fascicle-travel.png',bbox_inches='tight' ,pad_inches = 0);
+    line = ax1.add_collection(lc)
+    fig.colorbar(line,ax=ax1, fraction=0.046, pad=0.04)
+
+    z=fas_coord[:,2]
+    fas_loc_2D=np.linalg.norm(fas_coord[:, 0:2], axis=1)/1000
+
+    ax2.plot(z/d.dz,fas_loc_2D)
+    ax2.set_xlabel('Plane'); ax2.set_ylabel('Fascicle Movement')
+    plt.savefig(dirOutputs+'stats/fascicle-travel.png');
     if atom:
         plt.show()
-fascicle_travel()
-
-#%%------------------PDFs for fitting----------------------
-def lognorm_pdf(x, s, u):
-    """
-    Log normal distribution
-    """
-    A   =   1                       /       (x*s*np.sqrt(2*np.pi))
-    B   =   (np.log(x)-u)**2       /       (2*s**2)
-    return A * np.exp(-B)
-def normal_pdf(x, s, u):
-    """
-    Normal distribution
-    """
-    A   =   1       /          (s * np.sqrt(2*np.pi))
-    B   =   0.5     *          ((x-u)/s)**2
-    return A * np.exp (-B)
-def bi_pdf(x, s1, u1, s2, u2, w):
-    """
-    bimodal Normal distribution
-    """
-    return w * normal_pdf(x, s1, u1) + (1-w) * normal_pdf(x, s2, u2)
-def tri_pdf(x, s1, u1, s2, u2, s3, u3, w1, w2):
-    """
-    trimodal Normal distribution
-    """
-    return w1 * normal_pdf(x, s1, u1) + w2 * normal_pdf(x, s2, u2)+ (1 - w1 - w2) * normal_pdf(x, s3, u3)
+# fascicle_travel()
 
 #%%------------------Fibril Length
 def calculate_fibril_lengths():
@@ -140,31 +124,248 @@ def calculate_fibril_lengths():
     nexist=np.zeros(nF, dtype='int')
     for i in range(nF):
         nexist[i]=np.max(np.nonzero(FR[i]>-1))-np.min(np.nonzero(FR[i]>-1))+1
-    lens=np.zeros(nF)  #worm like length / n planes present
+    lens=np.zeros(nF)  #worm like length
+    criticalstrains=np.zeros(nF)  #worm like length / fascicle length for that fibril
     fas_coord_inc_junk=np.array([fascicleCoord(j) for j in range(d.nP)])
     for i in tqdm(range (nF)):
         fib_exist_in=np.argwhere(fibCoords(i)[1][:,0]>0 ).T [0]#Indices of where fibril exists
         faslen_rel=coOrds_to_length(fas_coord_inc_junk[fib_exist_in])
-        lens[i]=coOrds_to_length(fibCoords(i)[0])/faslen_rel
-    return lens, nexist
-def plot_fibril_lengths(lens):
+        criticalstrains[i]=coOrds_to_length(fibCoords(i)[0])/faslen_rel
+        lens[i]=coOrds_to_length(fibCoords(i)[0])
+    np.save(dirOutputs+f'stats/criticalstrains', criticalstrains)
+    return criticalstrains, nexist, lens
+criticalstrains,nexist, lens=calculate_fibril_lengths()
 
-    leny, lenx=np.histogram(lens, bins=50, density=True)
+
+#%%CSD AND LENGTHS
+
+def plot_critical_strain(criticalstrains, fitting=False):
+    criticalstrains=100*(criticalstrains-1)
+    leny, lenx=np.histogram((criticalstrains), bins=50, density=True)
     lenx=(lenx+np.diff(lenx)[0]/2)[: -1]
-    pars, cov=curve_fit(normal_pdf, lenx, leny)
-    x=np.linspace(np.min(lens), np.max(lens), 1000)
-    fit=[x, normal_pdf(x, pars[0], pars[1])]
+    pars, cov=curve_fit(md.normal_pdf, lenx, leny)
+    x=np.linspace(np.min(criticalstrains), np.max(criticalstrains), 1000)
+    fit=[x, md.normal_pdf(x, pars[0], pars[1])]
     print(f'Critical Strain. Fibril strands appear in {d.l_min/1000}um of z distance')
-    print(f'Critical strain mean {np.mean(lens)}, sd {np.std(lens)}')
-    md.my_histogram((lens), 'Length relative to fascicle',atom, binwidth=.005,filename=dirOutputs+f'stats/CS_dist_{d.l_min}nm_{d.frac*100}.png', dens=False, fitdata=fit, fitparams=pars)
-    np.save(dirOutputs+f'stats/scaledlengths_{d.l_min}nm_{d.frac*100}', lens)
+    print(f'Critical strain mean {np.mean(criticalstrains)}, sd {np.std(criticalstrains)}')
 
-lens,nexist=calculate_fibril_lengths()
-plot_fibril_lengths(lens)
+    if fitting:
+        md.my_histogram((criticalstrains), 'Length relative to fascicle',atom, binwidth=.5,filename=dirOutputs+f'stats/CS_dist_fit.png', dens=True, fitdata=fit, fitparams=pars)
+    else:
+        md.my_histogram((criticalstrains), 'Length relative to fascicle',atom, binwidth=.5,filename=dirOutputs+f'stats/CS_dist.png', dens=False)
 
-#%%---------------------------Feret Diameter of each fibril
+def plot_scaled_lens(lens, nexist):
+    scaledlengths=lens*(d.nP/nexist)/1000 #In um
+    md.my_histogram((scaledlengths), 'Fibril length ($\mu$m)',atom, binwidth=0.2,filename=dirOutputs+f'stats/scaledlengths.png', dens=False)
+    np.save(dirOutputs+f'stats/scaledlengths', scaledlengths)
+
+# plot_critical_strain(criticalstrains)
+# plot_scaled_lens(lens, nexist)
+
+#%%HELICES
+# i=10
+def helix_right_left_test(i, plot_it=True):
+    """
+    i = fibril number
+    returns 1 if fibril arc is clockwise in xy plane -> right handed helix in 3D
+    https://stackoverflow.com/questions/25252664/determine-whether-the-direction-of-a-line-segment-is-clockwise-or-anti-clockwise
+    https://stackoverflow.com/questions/20618804/how-to-smooth-a-curve-in-the-right-way
+    """
+
+    def savitzky_golay(y, window_size, order, deriv=0, rate=1):
+        """Smooth (and optionally differentiate) data with a Savitzky-Golay filter.
+        The Savitzky-Golay filter removes high frequency noise from data.
+        It has the advantage of preserving the original shape and
+        features of the signal better than other types of filtering
+        approaches, such as moving averages techniques.
+        Parameters
+        ----------
+        y : array_like, shape (N,)
+            the values of the time history of the signal.
+        window_size : int
+            the length of the window. Must be an odd integer number.
+        order : int
+            the order of the polynomial used in the filtering.
+            Must be less then `window_size` - 1.
+        deriv: int
+            the order of the derivative to compute (default = 0 means only smoothing)
+        Returns
+        -------
+        ys : ndarray, shape (N)
+            the smoothed signal (or it's n-th derivative).
+        Notes
+        -----
+        The Savitzky-Golay is a type of low-pass filter, particularly
+        suited for smoothing noisy data. The main idea behind this
+        approach is to make for each point a least-square fit with a
+        polynomial of high order over a odd-sized window centered at
+        the point.
+        Examples
+        --------
+        t = np.linspace(-4, 4, 500)
+        y = np.exp( -t**2 ) + np.random.normal(0, 0.05, t.shape)
+        ysg = savitzky_golay(y, window_size=31, order=4)
+        import matplotlib.pyplot as plt
+        plt.plot(t, y, label='Noisy signal')
+        plt.plot(t, np.exp(-t**2), 'k', lw=1.5, label='Original signal')
+        plt.plot(t, ysg, 'r', label='Filtered signal')
+        plt.legend()
+        plt.show()
+        References
+        ----------
+        .. [1] A. Savitzky, M. J. E. Golay, Smoothing and Differentiation of
+           Data by Simplified Least Squares Procedures. Analytical
+           Chemistry, 1964, 36 (8), pp 1627-1639.
+        .. [2] Numerical Recipes 3rd Edition: The Art of Scientific Computing
+           W.H. Press, S.A. Teukolsky, W.T. Vetterling, B.P. Flannery
+           Cambridge University Press ISBN-13: 9780521880688
+        """
+        from math import factorial
+
+        try:
+            window_size = np.abs(int(window_size))
+            order = np.abs(int(order))
+        except:# ValueError, msg:
+            raise ValueError("window_size and order have to be of type int")
+        if window_size % 2 != 1 or window_size < 1:
+            raise TypeError("window_size size must be a positive odd number")
+        if window_size < order + 2:
+            raise TypeError("window_size is too small for the polynomials order")
+        order_range = range(order+1)
+        half_window = (window_size -1) // 2
+        # precompute coefficients
+        b = np.mat([[k**i for i in order_range] for k in range(-half_window, half_window+1)])
+        m = np.linalg.pinv(b).A[deriv] * rate**deriv * factorial(deriv)
+        # pad the signal at the extremes with
+        # values taken from the signal itself
+        firstvals = y[0] - np.abs( y[1:half_window+1][::-1] - y[0] )
+        lastvals = y[-1] + np.abs(y[-half_window-1:-1][::-1] - y[-1])
+        y = np.concatenate((firstvals, y, lastvals))
+        return np.convolve( m[::-1], y, mode='valid')
+    C=fibCoords(i)[0].T
+    #Smooth fibril arc
+    x = savitzky_golay(C[0], 61, 3) # window size 51, polynomial order 3
+    y = savitzky_golay(C[1], 61, 3) # window size 51, polynomial order 3
+
+    sum=0
+    total=0
+    for i in range (x.size-2):
+        # i=3
+        vecU=np.array([x[i+1]-x[i] ,(y[i+1]-y[i])]) #finds cross product of two consecutive segments of path length
+        vecV=np.array([x[i+2]-x[i+1] ,(y[i+2]-y[i+1])])
+        total= total+1 if np.cross(vecU, vecV) > 0 else total-1
+        #if more are negative we say the curve is clockwise, and vise versa
+
+    if plot_it:
+        print ('Clockwise' if total <0 else 'Anticlockwise')
+        fig, ax=plt.subplots()
+        ax.plot(C[0], C[1])
+        ax.plot(x, y)
+        ax.plot([C[0,0]], [C[1,0]], 'ro')
+        plt.show()
+    return -total/(x.size-2)
+helix_arr=np.zeros(nF)
+for j in tqdm(range(nF)):
+    helix_arr[j]=helix_right_left_test(j, plot_it=False)
+def helicity_plot():
+    nF=FR.shape[0]
+
+
+
+    fig, ax=plt.subplots()
+    ax2=ax.twinx()
+    bins_=np.linspace(-0.5, 0.5, 40)
+    N, bins, patches =     ax.hist(helix_arr, bins=bins_, edgecolor='k', density=False)
+
+
+    ax.set_ylim(0, max(N))
+
+    skew, mean,std=skewnorm.fit(helix_arr)
+    xmin, xmax = -0.5, 0.5
+    x = np.linspace(xmin, xmax, 100)
+    y = skewnorm.pdf(x, skew, mean, std)
+
+
+    for bar in patches:
+        if (bar.get_x() < mean-std):
+            bar.set_facecolor("r")
+        if (bar.get_x() > mean+std):
+            bar.set_facecolor("g")
+
+    ax2.plot(x, y, '--k', label='Normal PDF')
+    ax2.set_ylim(0, max(y))
+    ax2.grid(False)
+    ax2.set_ylabel('Probability density')
+
+    textstr=f'$\mu$ = {mean:.3f}\n$\sigma$ = {std:.3f}\n$a$ = {skew:.2f}'
+    props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+    ax.text(0.75, 0.95, textstr, transform=ax.transAxes, fontsize=18,
+    verticalalignment='top', bbox=props)
+
+    LH_helical_fibs=np.where((helix_arr)<mean-std)[0]
+    RH_helical_fibs=np.where((helix_arr)>mean+std)[0]
+    which_helical=np.concatenate((LH_helical_fibs, RH_helical_fibs), axis=None)
+    nL=len(LH_helical_fibs); nR=len(RH_helical_fibs) ; nH=nL+nR
+
+
+    left = mpatches.Patch(color='red', label=f'Left-handed\n$n=${nL}')
+    non = mpatches.Patch(color='b', label=f'Non-helical \n$n=${nF-nH}')
+    right = mpatches.Patch(color='g', label=f'Right-handed\n$n=${nR}')
+
+
+
+    plt.legend(handles=[left,non,right], fontsize=18)
+
+    ax.set_xlabel('Helicity (AU)') ; ax.set_ylabel('Number')
+    plt.savefig(dirOutputs+f'stats/helicity')
+    plt.show()
+    return which_helical
+hel_fibs=helicity_plot()
+
+
+#%%Tortuosity
+
+tort=np.zeros(lens.shape)
+for i in tqdm(range(nF)):
+    first=fibCoords(i)[0][0]
+    last=fibCoords(i)[0][-1]
+    end_to_end=np.linalg.norm(last-first)
+    tort[i]=100*(lens[i]/end_to_end - 1)
+
+
+md.my_histogram(tort, binwidth=1,xlabel='Tortuosity', show=True, dens=True,filename=dirOutputs+'stats/tort' )
+
+nonhel_fibs=np.setdiff1d(np.arange(0, nF), hel_fibs)
+
+
+
+
+#%% ------------------------Area of each fibrils
+
+def fibril_area(i):
+    """
+    Delivers fibril area in nm^2, (since the pixel size is given in nm) for some fibril in the Fibril Record i
+    """
+    area_planewise=np.full(d.nP,-1.)  #an array of the areas for each fibril
+    for pID in range(d.nP):
+        if FR[i, pID]!=-1:
+            area_planewise[pID]=(props[pID, FR[i,pID],3])*(d.pxsize**2)
+    area_planewise=area_planewise[area_planewise>-1.]  #getting rid of d.junk slices / places where absent
+    mean = np.mean(area_planewise)
+    return mean, area_planewise
+def plot_fibril_area():
+    np.save(dirOutputs+f'area_{d.l_min}nm_{d.frac*100}.npy', area)
+    md.my_histogram(area/100, 'Fibril cross sectional area ($10^3$ nm$^2$)', atom, binwidth=25, filename=dirOutputs+'/stats/fibrilarea.png')
+area=np.array([fibril_area(i)[0] for i in range(nF)])
+plot_fibril_area()
+
+#%% MFDS
+
 def calculate_MFDs():
     def fibril_MFD(i, FR): #maps between props and fibrec
+        """
+        gives fibril MFD in nm as this is the units for the pixel size
+        """
         feret_planewise=np.full(d.nP,-1.)  #an array of the centroid co-ordinates for each fibril
         for pID in range(d.nP):
             if FR[i, pID]!=-1:
@@ -176,19 +377,16 @@ def calculate_MFDs():
     mfds= np.array([fibril_MFD(i, FR)[0] for i in range(nF)])
     np.save(dirOutputs+f'mfds_{d.l_min}nm_{d.frac*100}', mfds)
     return mfds
-def plot_mfds(bi=True, tri=False):
-    mfdy, mfdx=np.histogram(mfds, bins=30, density=True)
+def plot_mfds(bi=True, tri=False, fitting=False):
+    mfdy, mfdx=np.histogram(mfds, bins=50, density=True)
     mfdx=(mfdx+np.diff(mfdx)[0]/2)[: -1]
     xx=np.linspace(np.min(mfds), np.max(mfds), 1000)
 
     if bi:
-        u1_b=[75, 175];     s1_b=[0, np.inf]
-        u2_b=[175, 250];    s2_b=[0, np.inf]
-
-
-        pars, cov=curve_fit(bi_pdf, mfdx, mfdy, bounds=([s1_b[0], u1_b[0], s2_b[0], u2_b[0], 0],[s1_b[1], u1_b[1], s2_b[1], u2_b[1], 1] ))
-        fit=[xx, bi_pdf(xx,pars[0], pars[1], pars[2], pars[3], pars[4])]
-        # fit=np.vstack([np.concatenate([xx,xx]),np.concatenate([normal_pdf(xx,pars[0], pars[1]), normal_pdf(xx,pars[2], pars[3])])])
+        u1_b=[0, 250];     s1_b=[0, np.inf]
+        u2_b=[200, 350];    s2_b=[0, np.inf]
+        pars, cov=curve_fit(md.bi_pdf, mfdx, mfdy, bounds=([s1_b[0], u1_b[0], s2_b[0], u2_b[0], 0],[s1_b[1], u1_b[1], s2_b[1], u2_b[1], 1] ))
+        fit=[xx, md.bi_pdf(xx,pars[0], pars[1], pars[2], pars[3], pars[4])]
     if tri:
         u1_b=[75, 120];     s1_b=[0, np.inf]
         u2_b=[125, 175];    s2_b=[0, np.inf]
@@ -197,10 +395,13 @@ def plot_mfds(bi=True, tri=False):
         # u2_b=[0, np.inf];    s2_b=[0, np.inf]
         # u3_b=[0, np.inf];    s3_b=[0, np.inf]
 
-        pars, cov=curve_fit(tri_pdf, mfdx, mfdy, bounds=([s1_b[0], u1_b[0], s2_b[0], u2_b[0], s3_b[0], u3_b[0], 0, 0],[s1_b[1], u1_b[1], s2_b[1], u2_b[1], s3_b[1], u3_b[1],  1, 1]))
-        fit=[xx, tri_pdf(xx,pars[0], pars[1], pars[2], pars[3], pars[4], pars[5], pars[6], pars [7])]
+        pars, cov=curve_fit(md.tri_pdf, mfdx, mfdy, bounds=([s1_b[0], u1_b[0], s2_b[0], u2_b[0], s3_b[0], u3_b[0], 0, 0],[s1_b[1], u1_b[1], s2_b[1], u2_b[1], s3_b[1], u3_b[1],  1, 1]))
+        fit=[xx, md.tri_pdf(xx,pars[0], pars[1], pars[2], pars[3], pars[4], pars[5], pars[6], pars [7])]
 
-    md.my_histogram(mfds, 'Minimum Feret Diameter (nm)', atom, dens=False,filename=dirOutputs+f'stats/MFD_dist_{d.l_min}nm_{d.frac*100}_bimodal.png', fitdata=fit, binwidth=5,fitparams=pars)
+    if fitting:
+        md.my_histogram(mfds, 'Minimum Feret Diameter (nm)', atom, dens=False,filename=dirOutputs+f'stats/MFD_dist_{d.l_min}nm_{d.frac*100}_bimodal.png', fitdata=fit, binwidth=5,fitparams=pars)
+    else:
+        md.my_histogram(mfds, 'Minimum Feret Diameter (nm)', atom, dens=False,filename=dirOutputs+f'stats/MFD_dist.png',binwidth=5)
 
 mfds=calculate_MFDs()
 plot_mfds(bi=True)
@@ -226,35 +427,14 @@ def calculate_orientation():
 def plot_orientation(oris):
     oriy, orix=np.histogram(oris, bins=50, density=True)
     orix=(orix+np.diff(orix)[0]/2)[: -1]
-    pars, cov=curve_fit(lognorm_pdf, orix, oriy)
+    pars, cov=curve_fit(md.lognorm_pdf, orix, oriy)
     xx=np.linspace(0.01, 15, 2000)
-    fit=[xx, lognorm_pdf(xx, pars[0], pars[1])]
+    fit=[xx, md.lognorm_pdf(xx, pars[0], pars[1])]
 
     md.my_histogram(oris, f'Fibril alignment ($\degree$) ', atom, dens=False,binwidth=.5, pi=False,filename=dirOutputs+'/stats/orientation.png', fitdata=fit, fitparams=pars, units='$\degree$')
 
 oris=calculate_orientation()
 plot_orientation(oris)
-
-
-#%% ------------------------Area of each fibrils
-
-def fibril_area(i):
-    """
-    Delivers fibril area in nm^2, for some fibril in the Fibril Record i
-    """
-    area_planewise=np.full(d.nP,-1.)  #an array of the areas for each fibril
-    for pID in range(d.nP):
-        if FR[i, pID]!=-1:
-            area_planewise[pID]=(props[pID, FR[i,pID],3])*(d.pxsize**2)
-    area_planewise=area_planewise[area_planewise>-1.]  #getting rid of d.junk slices / places where absent
-    mean = np.mean(area_planewise)
-    return mean, area_planewise
-def plot_fibril_area():
-    np.save(dirOutputs+f'area_{d.l_min}nm_{d.frac*100}.npy', area)
-    md.my_histogram(area/100, 'Area ($10^3$ nm$^2$)', atom, binwidth=50)
-
-area=np.array([fibril_area(i)[0] for i in range(nF)])
-plot_fibril_area()
 
 #%% VOLUME FRACTION
 
@@ -357,11 +537,13 @@ def d1_3d():
     labels=md.label_volume(MC, d1_fibrils, FR, d.nP)
     md.export_animation(dirOutputs, d1_fibrils, labels, title='stats/D1-animation', step=5)
 
-d1_3d()
+# d1_3d()
 #%%---------------DROPPED FIBRIL INQUIRIES--------------------------------------
 #Q: read original fibril record, before chopping.
 def dropped_fibril_inquiries():
     nF_0,_=FR_0.shape
+    nF,_=FR.shape
+
     #Q: how many fibs are we capturing in cross-section?
     meanperplane=np.mean(np.apply_along_axis(np.max, 1, np.reshape(MC, (d.nP,d.npix**2 ))))
     n=0
@@ -372,32 +554,100 @@ def dropped_fibril_inquiries():
     nexist_0=np.zeros(nF_0, dtype='int')
     for i in range(nF_0):
         nexist_0[i]=np.max(np.nonzero(FR_0[i]>-1))-np.min(np.nonzero(FR_0[i]>-1))+1
+    nexist=np.zeros(nF, dtype='int')
+    for i in range(nF):
+        nexist[i]=np.max(np.nonzero(FR[i]>-1))-np.min(np.nonzero(FR[i]>-1))+1
     title_=f'Strands: {nF_0}, > {d.l_min}nm in z: {nF} $\sim$ {100*nF/nF_0:.0f}%'
     print(title_)
     md.my_histogram(nexist_0/d.nP,'fraction of planes present', atom,binwidth=.05, filename=dirOutputs+'stats/planes_present')
     md.my_histogram(nexist/d.nP,'fraction of planes present', atom,binwidth=.05, filename=dirOutputs+'stats/planes_present_zoom')
 dropped_fibril_inquiries()
-#%%     JUNK PLANES QUERIES
 
-def plot_fib_tops_bottoms():
+#%%finding fibril ends
 
-    f_tops=[];f_bottoms=[]
-    for fID in range(nF):
-        temp=np.nonzero(FR[fID]>-1)[0]
-        f_tops.append(temp[0])
-        f_bottoms.append(temp[-1])
-    cols=['red', 'lime']
 
-    h=np.histogram(f_tops+f_bottoms, d.nP//10)
-    plt.plot( h[1][0:-1], h[0])
-    plt.ylim(0, 1.05*max(h[0]))
-    plt.xlabel("Plane")
-    plt.ylabel('Number')
+def object_numbers_which_end_in_plane(pID, tops=True):
+    switch=0 if tops else 1
+    which_fibs=np.where(fibrilends[:, switch]==pID)[0]
+    obj_numbers=FR[which_fibs, pID]
+    centroids=props[pID, obj_numbers,0:2]
+    which_near_edge=np.argwhere((centroids>d.npix*0.95)|(centroids<d.npix*0.05))[:,0]
+    edgeobjects=obj_numbers[which_near_edge]
+    centre_objects=np.setdiff1d(obj_numbers, edgeobjects)
+    return  centre_objects , edgeobjects
+def find_fibril_ends():
+    ends_df=pd.DataFrame(columns=['ntop_c', 'ntop_e', 'ntail_c', 'ntail_e', 'sumc', 'sume'])
 
+    # pID=0
+    nexist=np.zeros(nF, dtype='int')
+    for i in range(nF):
+        nexist[i]=np.max(np.nonzero(FR[i]>-1))-np.min(np.nonzero(FR[i]>-1))+1
+
+    fibrilends=np.zeros((nF, 2), dtype='int') #first entry = top , second= bottom
+    for i in range(nF):
+        ends=np.nonzero(FR[i]>-1)[0][[0, -1]]
+        fibrilends[i]=ends
+
+    for pID in range(d.nP):
+        ntop_c,ntop_e=map(len,object_numbers_which_end_in_plane(pID, tops=True))
+        ntail_c,ntail_e=map(len,object_numbers_which_end_in_plane(pID, tops=False))
+
+        ends_df.loc[pID]=[ntop_c, ntop_e, ntail_c, ntail_e, ntop_c+ntail_c,ntop_e+ntail_e ]
+    return fibrilends, ends_df
+def create_image(pID):
+    top_c, top_e=object_numbers_which_end_in_plane(pID, tops=True)
+    tail_c, tail_e=object_numbers_which_end_in_plane(pID, tops=False)
+    im=MC[pID].astype('bool').astype('int')
+    j=1
+    for objectnumbers in [top_c, top_e, tail_c, tail_e]:
+        select_fibrils_im= j * np.isin(MC[pID],objectnumbers+1).astype('int')
+        im+=select_fibrils_im
+        j+=1
+    return im
+def color_image(pID):
+        im=create_image(pID)
+        im_color=np.zeros([im.shape[0], im.shape[0], 3])
+        def make_colormap():
+            def rgb(r, g, b):
+                return np.array([r, g, b])/255
+
+            bgcolor=rgb(0, 0, 0)
+            fibcol=rgb(116, 116, 116)
+            top_centre=rgb(34, 63, 213)
+            tail_center=rgb(255, 130, 0)
+
+            top_edge=rgb(111, 216, 255)
+            tail_edge=rgb(250, 230, 46)
+
+            top_edge=fibcol ; tail_edge=fibcol
+
+            return [bgcolor, fibcol,top_centre, top_edge, tail_center, tail_edge ]
+
+        colors=make_colormap()
+        for i in range(d.npix):
+            for j in range(d.npix):
+                im_color[i, j]= colors[im[i,j]]
+        return im_color
+def endsanimation():
+    fig, ax1=plt.subplots()
+
+    container = [];
+    for pID in tqdm(range(d.nP)):
+        im=ax1.imshow(color_image(pID), animated=True)
+        plot_title = ax1.text(0.5,1.05,'Plane %d of %d' % (pID, d.nP),
+                 size=plt.rcParams["axes.titlesize"],
+                 ha="center", transform=ax.transAxes, )
+        container.append([im, plot_title])
+    ani = animation.ArtistAnimation(fig, container, interval=500, blit=True)
+
+    ani.save(dirOutputs+'stats/ends.mp4')
+def ends_fig():
+    fig2, ax2=plt.subplots()
     for i in range(d.junk.shape[0]):
-        plt.arrow(d.junk[i],350,    0, -200,  lw=1, length_includes_head=True, head_width=10)
-
-    plt.savefig(dirOutputs+'stats/fibrilends');
-    if atom:
-        plt.show()
-plot_fib_tops_bottoms()
+        ax2.arrow(d.junk[i],40,    0, -15,  lw=1, length_includes_head=False, head_width=20, head_length=3)
+    ax2.plot(np.arange(1,d.nP-1), ends_df.sumc.to_numpy()[1:-1])
+    ax2.set_xlabel('Plane') ; ax2.set_ylabel('Number of fibril termini')
+    plt.savefig(dirOutputs+'stats/fibril_ends_new')
+    plt.show()
+fibrilends, ends_df=find_fibril_ends()
+ends_fig()

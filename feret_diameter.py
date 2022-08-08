@@ -1,4 +1,4 @@
-#ORIGINAL COPYRIGHT NOTICE  https://github.com/dbworth/minimum-area-bounding-rectangle
+#ORIGINAL COPYRIGHT NOTICE  https://github.com/dbworth/minimum-area-bounding-rectangle 
 # Find the minimum-area bounding box of a set of 2D points
 #
 # The input is a 2D convex hull, in an Nx2 numpy array of x-y co-ordinates.

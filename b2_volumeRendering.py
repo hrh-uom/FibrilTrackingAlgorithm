@@ -14,7 +14,7 @@ import a0_initialise as a0
 
 plt.style.use('./mystyle.mplstyle')
 
-print("b2: Volume rendering")
+print(f'b2: Volume rendering {md.t_d_stamp()}')
 
 def load_FTA_results():
     d, MC, props = a0.initialise_dataset()
@@ -78,7 +78,7 @@ def volume_render(labels, d, z1, z2, x1, x2,filename,resamplex=1, resamplez=1,el
     label_sz=24
     ax.set_xlabel('x ($\mu$m)', labelpad=15, fontsize=label_sz);
     ax.set_ylabel('y ($\mu$m)', labelpad=15, fontsize=label_sz);
-    ax.set_zlabel('z ($\mu$m)', rotation='horizontal', labelpad=25 , fontsize=label_sz, )
+    ax.set_zlabel('z ($\mu$m)', rotation='horizontal', labelpad=90 , fontsize=label_sz, )
 
     #TICKS
     ticksize=18;
@@ -86,7 +86,8 @@ def volume_render(labels, d, z1, z2, x1, x2,filename,resamplex=1, resamplez=1,el
     ax.tick_params(axis='y', pad=-5, labelsize=ticksize, rotation = 45);
     ax.tick_params(axis='z', pad=30, labelsize=ticksize)
 
-    print("Saving VR rendering image"); plt.savefig(d.dirOutputs+filename+f'_resample_{resamplex}_{resamplez}'+'.png', bbox_inches='tight' ,pad_inches = 0)
+    print("Saving VR rendering image");
+    plt.savefig(d.dirOutputs+filename+f'_resample_{resamplex}_{resamplez}'+'.png')
     if show:
         plt.show()
 

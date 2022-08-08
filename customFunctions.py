@@ -14,7 +14,7 @@ import matplotlib.patches as patches
 from  datetime import datetime as dt
 import os
 from tqdm import tqdm
-plt.style.use('./mystyle.mplstyle')
+plt.style.use('~/dbox/4-Thesis/stylesheet.mplstyle')
 
 #----------------DIRECTORIES AND PATHS-------------------
 def create_Directory(directory):
@@ -96,21 +96,6 @@ def label_volume(morphComp,fib_group,fib_rec,endplane, startplane=0):
              labels[j]=np.where(morphComp[pID]==fib_rec[fib_group[i], pID]+1, value, labels[j])
         j+=1
     return labels
-#
-# def custom_RGB_maker(fib_group, labels):
-#     """
-#     Takes a 3D array of labels and makes each label a different colour in terms of RGB [0, 0, 0] to [255, 255, 255]
-#     Custom version of skimage.color.label2rgb which uses int data type to save memory
-#     """
-#     cols=np.random.randint(0, 255, (np.max(labels)+10, 3), dtype='uint8'); cols[0]=[0,0,0]; cols[1]=[255,255,255]
-#     # cols=np.full((np.max(labels)+10, 3), 255, dtype='uint8'); cols[0]=[0,0,0];
-#
-#     RGB_vol=np.zeros((labels.shape[0], labels.shape[1], labels.shape[2], 3), dtype='uint8')
-#     for i in np.arange(labels.shape[0]):
-#         RGB_plane=cols[(labels[i]+1)] #https://forum.image.sc/t/skimage-color-label2rgb-but-choose-specific-colors-for-specific-labels/62500
-#         RGB_vol[i]=RGB_plane
-#     return RGB_vol
-
 def custom_RGB_maker(fib_group, labels):
     """
     Takes a 3D array of labels and makes each label a different colour in terms of RGB [0, 0, 0] to [255, 255, 255]
@@ -159,8 +144,6 @@ def animation_inline(fib_group, labels, startplane=0, endplane=0, dt=500, figsiz
     """
     ani=create_animation(fib_group, labels, startplane, endplane, dt, figsize, step, fas_coords=fas_coords)
     return HTML(ani.to_html5_video())
-
-
 #---------------PLOTS-------------------
 def my_histogram(arr,xlabel, show, dens=False, title=0, labels=[], binwidth=10, xlims=0, pi=False,filename=0, leg=False, fitdata=0, fitparams=0, units=''):
     """
@@ -193,7 +176,7 @@ def my_histogram(arr,xlabel, show, dens=False, title=0, labels=[], binwidth=10, 
             # these are matplotlib.patch.Patch properties
             props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
             # place a text box in upper left in axes coords
-            ax.text(0.8, 0.9, textstr, transform=ax.transAxes, fontsize=18,
+            ax.text(0.7, 0.9, textstr, transform=ax.transAxes, fontsize=21,
             verticalalignment='top', bbox=props)
         else:
             ax.margins(0.05, 0.05)
@@ -220,6 +203,32 @@ def my_histogram(arr,xlabel, show, dens=False, title=0, labels=[], binwidth=10, 
         plt.savefig(filename)
     if show:
         plt.show()
+
+#%%------------------PDFs for fitting----------------------
+def lognorm_pdf(x, s, u):
+    """
+    Log normal distribution
+    """
+    A   =   1                       /       (x*s*np.sqrt(2*np.pi))
+    B   =   (np.log(x)-u)**2       /       (2*s**2)
+    return A * np.exp(-B)
+def normal_pdf(x, s, u):
+    """
+    Normal distribution
+    """
+    A   =   1       /          (s * np.sqrt(2*np.pi))
+    B   =   0.5     *          ((x-u)/s)**2
+    return A * np.exp (-B)
+def bi_pdf(x, s1, u1, s2, u2, w):
+    """
+    bimodal Normal distribution
+    """
+    return w * normal_pdf(x, s1, u1) + (1-w) * normal_pdf(x, s2, u2)
+def tri_pdf(x, s1, u1, s2, u2, s3, u3, w1, w2):
+    """
+    trimodal Normal distribution
+    """
+    return w1 * normal_pdf(x, s1, u1) + w2 * normal_pdf(x, s2, u2)+ (1 - w1 - w2) * normal_pdf(x, s3, u3)
 
 #------------------------------STATS---------------------
 
