@@ -253,14 +253,14 @@ def setup_MC_props(d):
 
 def initialise_dataset():
     #==========Read stuff from jobscript ============
-    dataset = sys.argv[1]
-    minirun= bool(int(sys.argv[2]))
-    a= float(sys.argv[3])
-    b, c, T= tuple([float(sys.argv[i]) for i in [4, 5,6]])
-    predictive= bool(int(sys.argv[7]))
+    # dataset = sys.argv[1]
+    # minirun= bool(int(sys.argv[2]))
+    # a= float(sys.argv[3])
+    # b, c, T= tuple([float(sys.argv[i]) for i in [4, 5,6]])
+    # predictive= bool(int(sys.argv[7]))
     #================Input manually=====================
-    # dataset='nuts-and-bolts'
-    # minirun, a, b, c, T, predictive=0, 1.0, 1.0, 1.0, 1.0, 0
+    dataset='nuts-and-bolts'
+    minirun, a, b, c, T, predictive=0, 1.0, 1.0, 1.0, 1.0, 0
     #=====================================
     d=metadata(dataset,minirun, a, b, c, T, predictive)
     print(f'a0: Initialising FTA for Dataset {dataset}')
