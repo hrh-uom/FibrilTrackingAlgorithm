@@ -2,6 +2,8 @@ import a0_initialise as a0
 import customFunctions as md
 import numpy as np
 import matplotlib.pyplot as plt
+plt.style.use('~/dbox/4-Thesis/stylesheet.mplstyle')
+
 #-----------------------------5. ALGORITHM FUNCTION FIG ------------------------
 d, MC, props = a0.initialise_dataset()
 
@@ -36,7 +38,7 @@ def make_schematic():
 
     ax2.set_title("Plane $p+1$")
     ax2.set_xlabel('x ($\mu$m)')
-    ax2.set_ylabel('y ($\mu$m)')
+    # ax2.set_ylabel('y ($\mu$m)')
     index=np.ndarray.flatten(md.search_window(cofI, MFDofI*5, d.npix)).astype('int')
     compare_me=np.delete(np.unique(np.ndarray.flatten(MC[pID+1,index[0]:index[1], index[2]:index[3]]-1) ),0)
     plane2=MC[1]
@@ -50,7 +52,7 @@ def make_schematic():
     ax1.set_xticks(np.arange(0,11,2))
 
     ax2.add_patch(rect2)
-    fig1.tight_layout()
+    plt.tight_layout()
     plt.savefig(d.dirOutputs+'window-schematic.png');    plt.show()
 make_schematic()
 

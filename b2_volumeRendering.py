@@ -12,7 +12,7 @@ from IPython.display import HTML
 from tqdm import tqdm
 import a0_initialise as a0
 
-plt.style.use('./mystyle.mplstyle')
+plt.style.use('~/dbox/4-Thesis/stylesheet.mplstyle')
 
 print(f'b2: Volume rendering {md.t_d_stamp()}')
 
@@ -47,13 +47,13 @@ def midPlaneImage():
     """
     Creates an image of the mapping halfway through the volume
     """
-    fig, ax=plt.subplots(figsize=(12, 10))
+    fig, ax=plt.subplots()
     # color = [tuple(np.random.random(size=3)) for i in range(int(np.max(volume)))] #randomcolourlist
     choice=tuple(np.array([255, 40,40])/255)
     color = [choice for i in range(int(np.max(volume)))]
     color.insert(0,(.5,.5, .5)) #makesure other fibrils are white!!
     ax.set_xlabel('x ($\mu$m)');ax.set_ylabel('y ($\mu$m)')
-    plt.imshow(label2rgb(volume[int(d.nP/2)], bg_label=-1,colors=color), extent=[0,d.npix*d.pxsize/1000,0, d.npix*d.pxsize/1000])
+    plt.imshow(label2rgb(volume[int(d.nP/2)], bg_label=-1,colors=color), extent=[0,10,0,10])
     plt.savefig(d.dirOutputs+'volumerendering/mid-stack-img');
     # plt.show()
 # midPlaneImage()
@@ -94,9 +94,9 @@ def volume_render(labels, d, z1, z2, x1, x2,filename,resamplex=1, resamplez=1,el
 #%%-----------MAIN FLOW
 if __name__=='__main__':
     d, MC, props, FR, volume, nF=load_FTA_results()
-    stepthrough()
+    # stepthrough()
     midPlaneImage()
-    volume_render(volume, d, 0, d.nP, 0, d.npix, 'volumerendering/volume-render', resamplex=2, resamplez=2, show=False)
+    # volume_render(volume, d, 0, d.nP, 0, d.npix, 'volumerendering/volume-render', resamplex=2, resamplez=2, show=False)
 
 #%%------------------VOLUME FOR ABC-------------------------------------------------
 
