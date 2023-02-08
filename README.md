@@ -1,5 +1,11 @@
 # Setup
 
+Copy this repo locally. Do this by running 
+
+`git clone https://github.com/hrh-uom/FibrilTrackingAlgorithm.git` 
+
+in the terminal, in the folder where you would like it to be cloned.
+
 You will need python 3.7 or later with pip or conda.
 
 the requirements are standard scientific packages, if you want to install everything at once, navigate to the folder of this repo in your terminal and type 
@@ -7,20 +13,28 @@ the requirements are standard scientific packages, if you want to install everyt
 `pip install requirements.txt` or `conda install requirements.txt`
 
 
-# How does the FTA run?
+# Getting started
 
-The FTA is run by running local.sh , entering required values of a, b, c (weights in the error function) and T (error threshold.)
+## How to run the FTA?
+
+The FTA is run by running local.sh in the terminal with the command 
+
+`bash local.sh`
 
 There are 3 main scripts which do the computations in the FTA (a0 a1 a2) and 3 other scripts for analysis (b1-3) which create various figures using the data created by a0-2.
 
+Inside local.sh, you may edit required values of a, b, c (weights in the error function) and T (error threshold.)
 
-# Input data
+ > Inside `local.sh`, you may need to change `python` to `python3` if you are using a mac.
+
+## Preprocessing the data
 
 The SBF-SEM images will need to be binarised, segmented and in .tif format before running the FTA. This can be completed with any image analysis software.
 
+# The scripts and what they do
 
+## a0: Initialisation
 
-# a0: Initialisation
 a0 is an initialisation script, which runs at the start of all the others. It reads the files (SBF-SEM .tif stack and accompanying metadata file).
 
 The metadata file is a list of broken planes (noted manually by the user), and the dimensions of each voxel, which must be stored in the same directory as the SBF-SEM planes. a0 creates a class d to store the pixel size, slice thickness, number of planes and all  the various directories for reading and writing to/from.
@@ -29,21 +43,21 @@ It also either reads or creates the properties table (using scikit-image to meas
 
 >A test segmented dataset (5 planes) with a metadata file can be found in fta-repo/testdata. The directories in a0 point to this.
 
+a0 returns an object d, (short for 'dataset'), which contains much of the information about the dataset you're working with.
 
-
-# a1: Tracking
+## a1: Tracking
 a1 is the tracking algorithm, which saves the unfiltered fibril record as fib_rec.npy
 
-# a2: Statistics
+## a2: Statistics
 a2 reads fib_rec.npy, removes the short fibrils then calculates various statistics on the fibril population, including fibril length, orientation, helicity, etc.
 
-# b1: Explanatory schematics
+## b1: Explanatory schematics
 b1 creates two schematics which explain how the algorithm works (1(d) 4(a))
 
-# b2: Volume rendering
+## b2: Volume rendering
 b2 creates volume render and animation of the tracked fibrils
 
-# b3: Error function parameter optimisation
+## b3: Error function parameter optimisation
 b3 created the heatmap and associated volumes in figure 4: Parameter optimisation
 
 # Other files
