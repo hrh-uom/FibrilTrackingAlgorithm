@@ -1,3 +1,12 @@
+# Setup
+
+You will need python 3.7 or later with pip or conda.
+
+the requirements are standard scientific packages, if you want to install everything at once, navigate to the folder of this repo in your terminal and type 
+
+`pip install requirements.txt` or `conda install requirements.txt`
+
+
 # How does the FTA run?
 
 The FTA is run by running local.sh , entering required values of a, b, c (weights in the error function) and T (error threshold.)
