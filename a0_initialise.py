@@ -73,20 +73,25 @@ class metadata:
         self.predictive      =  predictive
 
         if self.dataset == 'example':
-            self.dirOutputs  =  './testdata/results/'
-            self.dirInputs  =   './testdata/'
-            self.end            =   5
+            """
+            Change these depending on your data
+            """
+            self.dirOutputs  =  './test_data/results/' 
+            self.dirInputs  =   './test_data'
+            self.metadatafilename   = self.dirInputs + '/example_metadata.csv'
+            self.imagePaths = self.dirInputs + '/segmented'
+            self.end            =      8
             self.start         =       0
 
-        self.nP_all      =   len(glob.glob(self.dirInputs+'segmented/*'))
-        self.nP              =   self.end-self.start #Number of planes
-        self.pxsize          =   pd.read_csv(glob.glob(self.dirInputs+'/*metadata*csv')[0]).pixelsize[0]
-        self.junk            =   pd.read_csv(glob.glob(self.dirInputs+'/*metadata*csv')[0]).junkslices.dropna().to_numpy()
-        self.dz              =   pd.read_csv(glob.glob(self.dirInputs+'/*metadata*csv')[0]).dz[0]
-        self.npix            =   Image.open(glob.glob(self.dirInputs+'/segmented/*')[0]).size[0]
+        self.nP_all             =   len(glob.glob(self.dirInputs+'segmented/*'))
+        self.nP                 =   self.end-self.start #Number of planes
+        self.pxsize             =   pd.read_csv(self.metadatafilename ).pixelsize[0]
+        self.junk               =   pd.read_csv(self.metadatafilename ).junkslices.dropna().to_numpy()
+        self.dz                 =   pd.read_csv(self.metadatafilename ).dz[0]
+        self.npix               =   Image.open(glob.glob(self.imagePaths+'/*')[0]).size[0]
 
         # params for Removing short fibrils as a fraction of the number of planes, then as an absolute length
-        self.frac        =   0.5
+        self.frac        =    0.5
         self.l_min       =    self.frac*self.dz*self.nP
 
 def create_binary_stack(d,whitefibrils=True):
@@ -105,7 +110,8 @@ def create_binary_stack(d,whitefibrils=True):
     imgstack : array (int) of size (dz,npix,npix)
 
     """
-    imagePath = sorted(glob.glob(d.dirInputs+'segmented/*'))[d.start:d.end]
+    
+    imagePath = sorted(glob.glob(d.imagePaths+'/*'))[d.start:d.end]
     npix=np.asarray(Image.open(imagePath[0])).shape[0]
     imgstack=np.zeros((len(imagePath), npix, npix), dtype=np.uint8)
     print("Making image stack")
@@ -225,3 +231,7 @@ def initialise_dataset():
     print(f'a0: Initialising FTA for Dataset {dataset}')
     MC, props=setup_MC_props(d)
     return d, MC, props
+
+if __name__ == "__main__":
+    d, _,_ =initialise_dataset()
+    print(d)

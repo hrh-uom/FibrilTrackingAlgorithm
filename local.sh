@@ -6,8 +6,9 @@ c=1
 T=1
 predictive=0 #0=false any other number is true
 
-python3 a1_fibtrackMain.py $data $minirun $a $b $c $T $predictive
-echo 'complete 1/3'
+echo 'Starting Fibril tracking Script a1'
+python a1_fibtrackMain.py $data $minirun $a $b $c $T $predictive
+echo 'Completed Fibril tracking script a1'
 
-python3 a2_fibtrackStats.py $data $minirun $a $b $c $T $predictive
-echo 'complete 2/3'
+python a2_fibtrackStats.py $data $minirun $a $b $c $T $predictive
+# echo 'complete 2/3'

@@ -8,13 +8,11 @@ import matplotlib.image as mpimg
 import matplotlib.cm as cm
 from skimage.measure import label, regionprops,regionprops_table
 from skimage.color import label2rgb
-from IPython.display import HTML
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from  datetime import datetime as dt
 import os
 from tqdm import tqdm
-plt.style.use('~/dbox/4-Thesis/stylesheet.mplstyle')
 
 #----------------DIRECTORIES AND PATHS-------------------
 def create_Directory(directory):

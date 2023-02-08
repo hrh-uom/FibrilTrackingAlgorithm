@@ -10,10 +10,7 @@ import matplotlib.patches as mpatches
 from  matplotlib.colors import ListedColormap
 from tqdm import tqdm
 from matplotlib import animation
-from IPython.display import HTML
-
 from scipy.optimize import curve_fit
-plt.style.use('~/dbox/4-Thesis/stylesheet.mplstyle')
 
 #---------------------USER INPUT----------------.----------------------------
 print(f'a2:Fibtrack stats {md.t_d_stamp()}')
@@ -408,6 +405,9 @@ plot_mfds(bi=True)
 
 #%%----------------Orientation
 def calculate_orientation():
+    """
+    Calcualate alignment relative to fascicle 
+    """
     fas_coords=np.array([fascicleCoord(pID) for pID in range (d.nP)]) #This includes d.junk planes
     orientation_lis=[]
     for fID in range(nF):
@@ -422,7 +422,6 @@ def calculate_orientation():
                     angle=angle-180
                 anglelis.append(angle)
         orientation_lis.append(np.mean(anglelis))
-    print(f'mean {np.mean(np.array(anglelis))}, sd {np.std(np.array(anglelis))}')
     return np.array(orientation_lis)
 def plot_orientation(oris):
     oriy, orix=np.histogram(oris, bins=50, density=True)
@@ -434,7 +433,8 @@ def plot_orientation(oris):
     md.my_histogram(oris, f'Fibril alignment ($\degree$) ', atom, dens=False,binwidth=.5, pi=False,filename=dirOutputs+'/stats/orientation.png', fitdata=fit, fitparams=pars, units='$\degree$')
 
 oris=calculate_orientation()
-plot_orientation(oris)
+
+# plot_orientation(oris)
 
 #%% VOLUME FRACTION
 
@@ -566,7 +566,7 @@ dropped_fibril_inquiries()
 #%%finding fibril ends
 
 
-def object_numbers_which_end_in_plane(pID, tops=True):
+def object_numbers_which_end_in_plane(pID, fibrilends, tops=True):
     switch=0 if tops else 1
     which_fibs=np.where(fibrilends[:, switch]==pID)[0]
     obj_numbers=FR[which_fibs, pID]
@@ -589,14 +589,14 @@ def find_fibril_ends():
         fibrilends[i]=ends
 
     for pID in range(d.nP):
-        ntop_c,ntop_e=map(len,object_numbers_which_end_in_plane(pID, tops=True))
-        ntail_c,ntail_e=map(len,object_numbers_which_end_in_plane(pID, tops=False))
+        ntop_c,ntop_e=map(len,object_numbers_which_end_in_plane(pID,  fibrilends , tops=True))
+        ntail_c,ntail_e=map(len,object_numbers_which_end_in_plane(pID, fibrilends,  tops=False))
 
         ends_df.loc[pID]=[ntop_c, ntop_e, ntail_c, ntail_e, ntop_c+ntail_c,ntop_e+ntail_e ]
     return fibrilends, ends_df
 def create_image(pID):
-    top_c, top_e=object_numbers_which_end_in_plane(pID, tops=True)
-    tail_c, tail_e=object_numbers_which_end_in_plane(pID, tops=False)
+    top_c, top_e=object_numbers_which_end_in_plane(pID, fibrilends, tops=True)
+    tail_c, tail_e=object_numbers_which_end_in_plane(pID, fibrilends,  tops=False)
     im=MC[pID].astype('bool').astype('int')
     j=1
     for objectnumbers in [top_c, top_e, tail_c, tail_e]:
