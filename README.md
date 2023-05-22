@@ -42,9 +42,7 @@ the requirements are standard scientific packages, if you want to install everyt
 # The scripts and what they do
 ## a0: Initialisation
 - `a0` is an initialisation script, which runs at the start of all the others. It reads the files (SBF-SEM .tif stack and accompanying metadata file).
-- The metadata file is a list of broken planes (noted manually by the
-user), and the dimensions of each voxel, which must be stored in the
-same directory as the SBF-SEM planes.
+- The metadata file is a list of broken planes (noted manually by the user, numbered from 0), and the dimensions of each voxel, which must be stored in the same directory as the SBF-SEM planes.
 - `a0` creates a class d to store the pixel size, slice thickness, number of planes and all  the various directories for reading and writing to/from.
 -  It also either reads or creates the properties table (using
 `scikit-image` to measure the objects in all of the planes) and
