@@ -255,7 +255,7 @@ def helix_right_left_test(i, plot_it=True, saveit=False, rank=0):
         vecV=np.array([x[i+2]-x[i+1] ,(y[i+2]-y[i+1])])
         total= total+1 if np.cross(vecU, vecV) > 0 else total-1
         #if more are negative we say the curve is clockwise, and vise versa
-    H_value=-total/(x.size-2) #flipped the sign so that left handed = negative because it looks better in the plot
+    H_value=total/(x.size-2) #flipped the sign so that left handed = negative because it looks better in the plot
     if plot_it:
         print ('Clockwise' if total <0 else 'Anticlockwise')
         fig, ax=plt.subplots(figsize=(6, 4), dpi=100)
@@ -273,7 +273,6 @@ helix_arr=np.zeros(nF)
 for j in tqdm(range(nF)):
     helix_arr[j]=helix_right_left_test(j, plot_it=False)
 #%%
-
 def export_fib_path_imgs():
     helix_sort_fibs=np.argsort(helix_arr) #list of firbils in helical order
 
@@ -287,8 +286,6 @@ def helicity_plot(cutoff=0.15):
     ax2=ax.twinx()
     bins_=np.linspace(-0.5, 0.5, 40)
     N, bins, patches =     ax.hist(helix_arr, bins=bins_, edgecolor='k', density=False)
-
-
     ax.set_ylim(0, max(N))
 
     skew, mean,std=skewnorm.fit(helix_arr)
@@ -297,12 +294,6 @@ def helicity_plot(cutoff=0.15):
     y = skewnorm.pdf(x, skew, mean, std)
 
 
-    for bar in patches:
-        if (bar.get_x() < -cutoff):
-            bar.set_facecolor("r")
-        if (bar.get_x() > cutoff):
-            bar.set_facecolor("g")
-
     ax2.plot(x, y, '--k', label='Normal PDF')
     ax2.set_ylim(0, max(y))
     ax2.grid(False)
@@ -310,22 +301,26 @@ def helicity_plot(cutoff=0.15):
 
     textstr=f'$\mu$ = {mean:.3f}\n$\sigma$ = {std:.3f}\n$a$ = {skew:.2f}'
     props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
-    ax.text(0.75, 0.95, textstr, transform=ax.transAxes, fontsize=18,
+    ax.text(0.1, 0.9, textstr, transform=ax.transAxes, fontsize=18,
     verticalalignment='top', bbox=props)
 
-    LH_helical_fibs=np.where((helix_arr)<-cutoff)[0]
-    RH_helical_fibs=np.where((helix_arr)>cutoff)[0]
+    RH_helical_fibs=np.where((helix_arr)<-cutoff)[0]
+    R=LH_helical_fibs=np.where((helix_arr)>cutoff)[0]
     which_helical=np.concatenate((LH_helical_fibs, RH_helical_fibs), axis=None)
     nL=len(LH_helical_fibs); nR=len(RH_helical_fibs) ; nH=nL+nR
 
+    for bar in patches:
+        if (bar.get_x() < -cutoff):
+            bar.set_facecolor("r")
+        if (bar.get_x() > cutoff):
+            bar.set_facecolor("g")
 
-    left = mpatches.Patch(color='red', label=f'Left-handed\n$n=${nL}')
+
+    right = mpatches.Patch(color='red', label=f'Right-handed\n$n=${nR}')
     non = mpatches.Patch(color='b', label=f'Non-helical \n$n=${nF-nH}')
-    right = mpatches.Patch(color='g', label=f'Right-handed\n$n=${nR}')
+    left = mpatches.Patch(color='g', label=f'Left-handed\n$n=${nL}')
 
-
-
-    plt.legend(handles=[left,non,right], fontsize=18)
+    plt.legend(handles=[right,non,left],loc=1,fontsize=18)
 
     ax.set_xlabel('Chirality') ; ax.set_ylabel('Number')
     plt.savefig(dirOutputs+f'stats/helicity')
@@ -353,6 +348,14 @@ md.my_histogram(tort, binwidth=0.5,xlabel='Tortuosity', show=True, fitdata=fit,f
 
 
 
+#%%helix v Tortuosity
+
+fig, ax=plt.subplots()
+ax.plot(helix_arr[:], tort[:], 'o', ms=2)
+ax.set_xlabel('Chirality'); ax.set_ylabel('Tortuosity')
+# ax.set_ylim(0, 10)
+plt.savefig(dirOutputs+'stats/chirality_tortuosity')
+plt.show()
 
 
 #%% ------------------------Area of each fibrils
@@ -665,6 +668,7 @@ def ends_fig():
     plt.savefig(dirOutputs+'stats/fibril_ends_new')
     plt.show()
 fibrilends, ends_df=find_fibril_ends()
+max(ends_df.sumc.to_numpy()[1:-1])
 ends_fig()
 #%%How many in each plane
 
