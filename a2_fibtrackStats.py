@@ -110,8 +110,7 @@ def fascicle_travel():
     ax2.plot(z/d.dz,fas_loc_2D)
     ax2.set_xlabel('Plane'); ax2.set_ylabel('Fascicle Movement')
     plt.savefig(dirOutputs+'stats/fascicle-travel.png');
-    if atom:
-        plt.show()
+
 # fascicle_travel()
 
 #%%------------------Fibril Length
@@ -161,7 +160,7 @@ def plot_scaled_lens(lens, nexist):
 
 #%%HELICES
 # i=10
-def helix_right_left_test(i, plot_it=True):
+def helix_right_left_test(i, plot_it=False):
     """
     i = fibril number
     returns 1 if fibril arc is clockwise in xy plane -> right handed helix in 3D
@@ -259,7 +258,7 @@ def helix_right_left_test(i, plot_it=True):
         ax.plot(C[0], C[1])
         ax.plot(x, y)
         ax.plot([C[0,0]], [C[1,0]], 'ro')
-        plt.show()
+        #plt.show()
     return -total/(x.size-2)
 helix_arr=np.zeros(nF)
 for j in tqdm(range(nF)):
@@ -315,7 +314,8 @@ def helicity_plot():
 
     ax.set_xlabel('Helicity (AU)') ; ax.set_ylabel('Number')
     plt.savefig(dirOutputs+f'stats/helicity')
-    plt.show()
+    plt.close()
+    #plt.show()
     return which_helical
 hel_fibs=helicity_plot()
 
@@ -330,7 +330,7 @@ for i in tqdm(range(nF)):
     tort[i]=100*(lens[i]/end_to_end - 1)
 
 
-md.my_histogram(tort, binwidth=1,xlabel='Tortuosity', show=True, dens=True,filename=dirOutputs+'stats/tort' )
+md.my_histogram(tort, binwidth=1,xlabel='Tortuosity', show=False, dens=True,filename=dirOutputs+'stats/tort' )
 
 nonhel_fibs=np.setdiff1d(np.arange(0, nF), hel_fibs)
 
@@ -406,7 +406,7 @@ plot_mfds(bi=True)
 #%%----------------Orientation
 def calculate_orientation():
     """
-    Calcualate alignment relative to fascicle 
+    Calcualate alignment relative to fascicle
     """
     fas_coords=np.array([fascicleCoord(pID) for pID in range (d.nP)]) #This includes d.junk planes
     orientation_lis=[]
@@ -505,8 +505,8 @@ def statistical_significance():
 
     filename=dirOutputs+f'stats/statistical_significance_CS_dist_{d.frac}.png'
     plt.savefig(filename);
-    if atom:
-        plt.show()
+    # if atom:
+        #plt.show()
 
 statistical_significance()
 
@@ -523,8 +523,8 @@ def long_fibril_query():
     ax2.hist(mfds[XLfibs], density=True)
     fig.tight_layout()
     plt.savefig(dirOutputs+'stats/xl-fibs.png')
-    if atom:
-        plt.show()
+    # if atom:
+        #plt.show()
     xl_fibs_render=False
     if xl_fibs_render:
         labels=md.label_volume(MC, XLfibs, FR, 695)
@@ -643,11 +643,9 @@ def endsanimation():
     ani.save(dirOutputs+'stats/ends.mp4')
 def ends_fig():
     fig2, ax2=plt.subplots()
-    for i in range(d.junk.shape[0]):
-        ax2.arrow(d.junk[i],40,    0, -15,  lw=1, length_includes_head=False, head_width=20, head_length=3)
     ax2.plot(np.arange(1,d.nP-1), ends_df.sumc.to_numpy()[1:-1])
     ax2.set_xlabel('Plane') ; ax2.set_ylabel('Number of fibril termini')
     plt.savefig(dirOutputs+'stats/fibril_ends_new')
-    plt.show()
+    #plt.show()
 fibrilends, ends_df=find_fibril_ends()
 ends_fig()
