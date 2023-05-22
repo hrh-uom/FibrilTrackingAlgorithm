@@ -136,7 +136,6 @@ criticalstrains,nexist, lens=calculate_fibril_lengths()
 #%%CSD AND LENGTHS
 
 def plot_critical_strain(criticalstrains, fitting=False):
-    criticalstrains=100*(criticalstrains-1)
     leny, lenx=np.histogram((criticalstrains), bins=50, density=True)
     lenx=(lenx+np.diff(lenx)[0]/2)[: -1]
     pars, cov=curve_fit(md.normal_pdf, lenx, leny)
@@ -146,21 +145,21 @@ def plot_critical_strain(criticalstrains, fitting=False):
     print(f'Critical strain mean {np.mean(criticalstrains)}, sd {np.std(criticalstrains)}')
 
     if fitting:
-        md.my_histogram((criticalstrains), 'Length relative to fascicle',atom, binwidth=.5,filename=dirOutputs+f'stats/CS_dist_fit.png', dens=True, fitdata=fit, fitparams=pars)
+        md.my_histogram((criticalstrains), 'Length relative to fascicle',atom, binwidth=.05,filename=dirOutputs+f'stats/CS_dist_fit.png', dens=False, fitdata=fit, fitparams=pars)
     else:
-        md.my_histogram((criticalstrains), 'Length relative to fascicle',atom, binwidth=.5,filename=dirOutputs+f'stats/CS_dist.png', dens=False)
+        md.my_histogram((criticalstrains), 'Length relative to fascicle',atom,show=False,  binwidth=.05,filename=dirOutputs+f'stats/CS_dist.png', dens=False)
 
 def plot_scaled_lens(lens, nexist):
     scaledlengths=lens*(d.nP/nexist)/1000 #In um
     md.my_histogram((scaledlengths), 'Fibril length ($\mu$m)',atom, binwidth=0.2,filename=dirOutputs+f'stats/scaledlengths.png', dens=False)
     np.save(dirOutputs+f'stats/scaledlengths', scaledlengths)
-
-# plot_critical_strain(criticalstrains)
+# plot_scaled_lens(lens, nexist)
+plot_critical_strain(criticalstrains, fitting=True)
 # plot_scaled_lens(lens, nexist)
 
 #%%HELICES
 # i=10
-def helix_right_left_test(i, plot_it=False):
+def helix_right_left_test(i, plot_it=True, saveit=False, rank=0):
     """
     i = fibril number
     returns 1 if fibril arc is clockwise in xy plane -> right handed helix in 3D
@@ -206,7 +205,7 @@ def helix_right_left_test(i, plot_it=False):
         plt.plot(t, np.exp(-t**2), 'k', lw=1.5, label='Original signal')
         plt.plot(t, ysg, 'r', label='Filtered signal')
         plt.legend()
-        plt.show()
+        #plt.show()
         References
         ----------
         .. [1] A. Savitzky, M. J. E. Golay, Smoothing and Differentiation of
@@ -251,42 +250,48 @@ def helix_right_left_test(i, plot_it=False):
         vecV=np.array([x[i+2]-x[i+1] ,(y[i+2]-y[i+1])])
         total= total+1 if np.cross(vecU, vecV) > 0 else total-1
         #if more are negative we say the curve is clockwise, and vise versa
-
+    H_value=total/(x.size-2) #flipped the sign so that left handed = negative because it looks better in the plot
     if plot_it:
         print ('Clockwise' if total <0 else 'Anticlockwise')
-        fig, ax=plt.subplots()
+        fig, ax=plt.subplots(figsize=(6, 4), dpi=100)
         ax.plot(C[0], C[1])
+        ax.set_title(f'Fibril number {i} helicity {H_value:.4f}')
         ax.plot(x, y)
         ax.plot([C[0,0]], [C[1,0]], 'ro')
+        if saveit:
+            plt.savefig(dirOutputs+f'stats/chiral/helix_{rank}_fib_{i}')
         #plt.show()
-    return -total/(x.size-2)
+
+        plt.close()
+    return H_value
 helix_arr=np.zeros(nF)
 for j in tqdm(range(nF)):
     helix_arr[j]=helix_right_left_test(j, plot_it=False)
-def helicity_plot():
+#%%
+
+print(helix_arr)
+
+
+def export_fib_path_imgs():
+    helix_sort_fibs=np.argsort(helix_arr) #list of firbils in helical order
+
+    for j in tqdm(range(len(helix_sort_fibs))):
+        i=helix_sort_fibs[j]
+        helix_right_left_test(i, plot_it=True, saveit=True, rank=j)
+
+def helicity_plot(cutoff=0, xmin=-1, xmax=1):
     nF=FR.shape[0]
-
-
-
     fig, ax=plt.subplots()
     ax2=ax.twinx()
-    bins_=np.linspace(-0.5, 0.5, 40)
+    bins_=np.linspace(xmin, xmax, 40)
     N, bins, patches =     ax.hist(helix_arr, bins=bins_, edgecolor='k', density=False)
-
-
-    ax.set_ylim(0, max(N))
+    ax.set_ylim(0, max(N)+10)
 
     skew, mean,std=skewnorm.fit(helix_arr)
     xmin, xmax = -0.5, 0.5
     x = np.linspace(xmin, xmax, 100)
     y = skewnorm.pdf(x, skew, mean, std)
 
-
-    for bar in patches:
-        if (bar.get_x() < mean-std):
-            bar.set_facecolor("r")
-        if (bar.get_x() > mean+std):
-            bar.set_facecolor("g")
 
     ax2.plot(x, y, '--k', label='Normal PDF')
     ax2.set_ylim(0, max(y))
@@ -295,30 +300,35 @@ def helicity_plot():
 
     textstr=f'$\mu$ = {mean:.3f}\n$\sigma$ = {std:.3f}\n$a$ = {skew:.2f}'
     props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
-    ax.text(0.75, 0.95, textstr, transform=ax.transAxes, fontsize=18,
+    ax.text(0.1, 0.9, textstr, transform=ax.transAxes, fontsize=18,
     verticalalignment='top', bbox=props)
 
-    LH_helical_fibs=np.where((helix_arr)<mean-std)[0]
-    RH_helical_fibs=np.where((helix_arr)>mean+std)[0]
+    RH_helical_fibs=np.where((helix_arr)<-cutoff)[0]
+    R=LH_helical_fibs=np.where((helix_arr)>cutoff)[0]
     which_helical=np.concatenate((LH_helical_fibs, RH_helical_fibs), axis=None)
     nL=len(LH_helical_fibs); nR=len(RH_helical_fibs) ; nH=nL+nR
 
+    for bar in patches:
+        if (bar.get_x() < -cutoff):
+            bar.set_facecolor("r")
+        if (bar.get_x() > cutoff):
+            bar.set_facecolor("g")
 
-    left = mpatches.Patch(color='red', label=f'Left-handed\n$n=${nL}')
+
+    right = mpatches.Patch(color='red', label=f'Right-handed\n$n=${nR}')
     non = mpatches.Patch(color='b', label=f'Non-helical \n$n=${nF-nH}')
-    right = mpatches.Patch(color='g', label=f'Right-handed\n$n=${nR}')
+    left = mpatches.Patch(color='g', label=f'Left-handed\n$n=${nL}')
 
+    plt.legend(handles=[right,non,left],loc=1,fontsize=18)
 
-
-    plt.legend(handles=[left,non,right], fontsize=18)
-
-    ax.set_xlabel('Helicity (AU)') ; ax.set_ylabel('Number')
-    plt.savefig(dirOutputs+f'stats/helicity')
+    ax.set_xlabel('Chirality') ; ax.set_ylabel('Number')
+    plt.savefig(dirOutputs+f'stats/chirality')
+    # #plt.show()
     plt.close()
-    #plt.show()
     return which_helical
 hel_fibs=helicity_plot()
 
+nonhel_fibs=np.setdiff1d(np.arange(0, nF), hel_fibs)
 
 #%%Tortuosity
 
@@ -329,13 +339,12 @@ for i in tqdm(range(nF)):
     end_to_end=np.linalg.norm(last-first)
     tort[i]=100*(lens[i]/end_to_end - 1)
 
-
-md.my_histogram(tort, binwidth=1,xlabel='Tortuosity', show=False, dens=True,filename=dirOutputs+'stats/tort' )
-
-nonhel_fibs=np.setdiff1d(np.arange(0, nF), hel_fibs)
-
-
-
+x=np.linspace(np.min(tort), np.max(tort), 1000)
+leny, lenx=np.histogram((tort), bins=50, density=True)
+lenx=(lenx+np.diff(lenx)[0]/2)[: -1]
+pars, cov=curve_fit(md.lognorm_pdf, lenx, leny)
+fit=[x, md.lognorm_pdf(x, pars[0], pars[1])]
+md.my_histogram(tort, binwidth=2,xlabel='Tortuosity', show=False, fitdata=fit,fitparams=pars, dens=False,filename=dirOutputs+'stats/tort' )
 
 #%% ------------------------Area of each fibrils
 
@@ -380,9 +389,9 @@ def plot_mfds(bi=True, tri=False, fitting=False):
     xx=np.linspace(np.min(mfds), np.max(mfds), 1000)
 
     if bi:
-        u1_b=[0, 250];     s1_b=[0, np.inf]
-        u2_b=[200, 350];    s2_b=[0, np.inf]
-        pars, cov=curve_fit(md.bi_pdf, mfdx, mfdy, bounds=([s1_b[0], u1_b[0], s2_b[0], u2_b[0], 0],[s1_b[1], u1_b[1], s2_b[1], u2_b[1], 1] ))
+        u1_g=100;     s1_g=100
+        u2_g=250;    s2_g=100
+        pars, cov=curve_fit(md.bi_pdf, mfdx, mfdy, p0=[s1_g, u1_g,s2_g, u2_g , 0.5])
         fit=[xx, md.bi_pdf(xx,pars[0], pars[1], pars[2], pars[3], pars[4])]
     if tri:
         u1_b=[75, 120];     s1_b=[0, np.inf]
@@ -396,18 +405,15 @@ def plot_mfds(bi=True, tri=False, fitting=False):
         fit=[xx, md.tri_pdf(xx,pars[0], pars[1], pars[2], pars[3], pars[4], pars[5], pars[6], pars [7])]
 
     if fitting:
-        md.my_histogram(mfds, 'Minimum Feret Diameter (nm)', atom, dens=False,filename=dirOutputs+f'stats/MFD_dist_{d.l_min}nm_{d.frac*100}_bimodal.png', fitdata=fit, binwidth=5,fitparams=pars)
+        md.my_histogram(mfds, 'Minimum Feret Diameter (nm)', atom, dens=False,filename=dirOutputs+f'stats/minimum_feret_diamerer', fitdata=fit, binwidth=5,fitparams=pars)
     else:
         md.my_histogram(mfds, 'Minimum Feret Diameter (nm)', atom, dens=False,filename=dirOutputs+f'stats/MFD_dist.png',binwidth=5)
 
 mfds=calculate_MFDs()
-plot_mfds(bi=True)
+plot_mfds(bi=True, fitting=True)
 
 #%%----------------Orientation
 def calculate_orientation():
-    """
-    Calcualate alignment relative to fascicle
-    """
     fas_coords=np.array([fascicleCoord(pID) for pID in range (d.nP)]) #This includes d.junk planes
     orientation_lis=[]
     for fID in range(nF):
@@ -433,8 +439,7 @@ def plot_orientation(oris):
     md.my_histogram(oris, f'Fibril alignment ($\degree$) ', atom, dens=False,binwidth=.5, pi=False,filename=dirOutputs+'/stats/orientation.png', fitdata=fit, fitparams=pars, units='$\degree$')
 
 oris=calculate_orientation()
-
-# plot_orientation(oris)
+plot_orientation(oris)
 
 #%% VOLUME FRACTION
 
@@ -482,7 +487,7 @@ def statistical_significance():
     ax.hist(rel_tracked_FD, bins, alpha = 1, color='blue',label='Tracked fibrils')
 
     ax.hist(rel_all_FD, bins, alpha = 0.5, color='grey',label='All segments', edgecolor='black')
-    ax.legend(loc='upper left')
+
     ax.set_ylabel('Number')
     ax.set_xlabel('Minimum Feret diameter (nm)')
     ax.grid(visible=False,which='major', axis='y')
@@ -501,72 +506,19 @@ def statistical_significance():
     ax2.plot((edges+0.5*(edges[1]-edges[0]))[:-1][nonzero],hist_tracked[nonzero]/hist_all[nonzero], '--k')
     ax2.set_ylim(0,1.05)
     ax2.set_yticks(np.arange(0, 110, 20)/100)
-    ax2.set_ylabel('fraction of segments captured')
-
+    ax2.set_ylabel('Fraction of segments captured')
+    ax.legend(loc=2, fontsize=16)
     filename=dirOutputs+f'stats/statistical_significance_CS_dist_{d.frac}.png'
     plt.savefig(filename);
-    # if atom:
+    #if atom:
         #plt.show()
 
 statistical_significance()
 
-#%%Investigating long fibrils
-
-def long_fibril_query():
-    fig, (ax1, ax2)=plt.subplots(1,2)
-    XLfibs=np.where(lens>1.1)[0]
-    ax1.set_xlabel('Normalised lengths')
-    ax1.set_ylabel('Minimum Feret Diameter (nm)')
-    ax1.plot(lens[XLfibs],mfds[XLfibs], '.r', )
-    ax2.set_xlabel('Minimum Feret Diameter (nm)')
-    ax2.set_ylabel('Density')
-    ax2.hist(mfds[XLfibs], density=True)
-    fig.tight_layout()
-    plt.savefig(dirOutputs+'stats/xl-fibs.png')
-    # if atom:
-        #plt.show()
-    xl_fibs_render=False
-    if xl_fibs_render:
-        labels=md.label_volume(MC, XLfibs, FR, 695)
-        md.export_animation(dirOutputs, XLfibs, labels, title='stats/xl-fibrils-animation', step=5)
-long_fibril_query()
-
-#%% d1 fibrils
-def d1_3d():
-    d1_fibrils=np.where(mfds<100)[0]
-    labels=md.label_volume(MC, d1_fibrils, FR, d.nP)
-    md.export_animation(dirOutputs, d1_fibrils, labels, title='stats/D1-animation', step=5)
-
-# d1_3d()
-#%%---------------DROPPED FIBRIL INQUIRIES--------------------------------------
-#Q: read original fibril record, before chopping.
-def dropped_fibril_inquiries():
-    nF_0,_=FR_0.shape
-    nF,_=FR.shape
-
-    #Q: how many fibs are we capturing in cross-section?
-    meanperplane=np.mean(np.apply_along_axis(np.max, 1, np.reshape(MC, (d.nP,d.npix**2 ))))
-    n=0
-    for i in range(d.nP):
-        n+=FR[i][FR[i]>-1].size
-    print('fraction captured in cross section', (n/d.nP)/meanperplane)
-    #Q: How long are all the fibrils in the original fibril rec?
-    nexist_0=np.zeros(nF_0, dtype='int')
-    for i in range(nF_0):
-        nexist_0[i]=np.max(np.nonzero(FR_0[i]>-1))-np.min(np.nonzero(FR_0[i]>-1))+1
-    nexist=np.zeros(nF, dtype='int')
-    for i in range(nF):
-        nexist[i]=np.max(np.nonzero(FR[i]>-1))-np.min(np.nonzero(FR[i]>-1))+1
-    title_=f'Strands: {nF_0}, > {d.l_min}nm in z: {nF} $\sim$ {100*nF/nF_0:.0f}%'
-    print(title_)
-    md.my_histogram(nexist_0/d.nP,'fraction of planes present', atom,binwidth=.05, filename=dirOutputs+'stats/planes_present')
-    md.my_histogram(nexist/d.nP,'fraction of planes present', atom,binwidth=.05, filename=dirOutputs+'stats/planes_present_zoom')
-dropped_fibril_inquiries()
 
 #%%finding fibril ends
 
-
-def object_numbers_which_end_in_plane(pID, fibrilends, tops=True):
+def object_numbers_which_end_in_plane(pID,fibrilends, tops=True):
     switch=0 if tops else 1
     which_fibs=np.where(fibrilends[:, switch]==pID)[0]
     obj_numbers=FR[which_fibs, pID]
@@ -589,14 +541,14 @@ def find_fibril_ends():
         fibrilends[i]=ends
 
     for pID in range(d.nP):
-        ntop_c,ntop_e=map(len,object_numbers_which_end_in_plane(pID,  fibrilends , tops=True))
-        ntail_c,ntail_e=map(len,object_numbers_which_end_in_plane(pID, fibrilends,  tops=False))
+        ntop_c,ntop_e=map(len,object_numbers_which_end_in_plane(pID, fibrilends, tops=True))
+        ntail_c,ntail_e=map(len,object_numbers_which_end_in_plane(pID, fibrilends,tops=False))
 
         ends_df.loc[pID]=[ntop_c, ntop_e, ntail_c, ntail_e, ntop_c+ntail_c,ntop_e+ntail_e ]
     return fibrilends, ends_df
 def create_image(pID):
-    top_c, top_e=object_numbers_which_end_in_plane(pID, fibrilends, tops=True)
-    tail_c, tail_e=object_numbers_which_end_in_plane(pID, fibrilends,  tops=False)
+    top_c, top_e=object_numbers_which_end_in_plane(pID, tops=True)
+    tail_c, tail_e=object_numbers_which_end_in_plane(pID, tops=False)
     im=MC[pID].astype('bool').astype('int')
     j=1
     for objectnumbers in [top_c, top_e, tail_c, tail_e]:
@@ -643,9 +595,22 @@ def endsanimation():
     ani.save(dirOutputs+'stats/ends.mp4')
 def ends_fig():
     fig2, ax2=plt.subplots()
-    ax2.plot(np.arange(1,d.nP-1), ends_df.sumc.to_numpy()[1:-1])
+    ax2.plot(np.arange(1,d.nP-1), ends_df.sumc.to_numpy()[1:-1], '-', ms=3)
     ax2.set_xlabel('Plane') ; ax2.set_ylabel('Number of fibril termini')
     plt.savefig(dirOutputs+'stats/fibril_ends_new')
     #plt.show()
 fibrilends, ends_df=find_fibril_ends()
+max(ends_df.sumc.to_numpy()[1:-1])
 ends_fig()
+#%%How many in each plane
+
+def how_many_fibrils():
+    n_fibs_list=[]
+
+    for pID in range(d.nP):
+        n_fibs_list.append(    np.count_nonzero(FR[:, pID]+1))
+
+    fig, ax=plt.subplots()
+    ax.set_xlabel('Plane');ax.set_ylabel('Number of Fibrils')
+    ax.plot(n_fibs_list) ; #plt.show()
+how_many_fibrils()
